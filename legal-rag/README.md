@@ -69,6 +69,15 @@ Not implemented yet:
 - Authentication or RBAC
 - Database infrastructure
 
+## Embedding strategy
+
+The embedding layer is designed around a provider interface so the rest of the app does not depend on one model or API.
+
+- Local/default option: a Hugging Face `sentence-transformers` model, currently `BAAI/bge-small-en-v1.5`
+- Server-side options: LangChain adapters can wrap providers such as Hugging Face, OpenAI, or other supported backends
+
+This keeps chunking, embedding, vector storage, and retrieval separate while still allowing model swaps later without rewriting ingestion logic.
+
 ## Notes
 
 The current design keeps application concerns separated so the codebase can grow without turning `app.py` into a monolith.
