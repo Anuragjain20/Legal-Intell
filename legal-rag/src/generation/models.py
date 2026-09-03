@@ -1,0 +1,41 @@
+"""Generation response models."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from src.retrieval.models import RetrievalResult
+
+
+@dataclass(frozen=True)
+class ContextSource:
+    """A structured source block passed to the model."""
+
+    rank: int
+    document_id: str
+    chunk_id: str
+    page_number: int
+    section: str | None
+    heading: str | None
+    text: str
+    score: float
+
+
+@dataclass(frozen=True)
+class GenerationContext:
+    """Structured prompt context assembled from retrieval results."""
+
+    question: str
+    sources: list[ContextSource]
+    rendered_context: str
+
+
+@dataclass(frozen=True)
+class GenerationResult:
+    """A grounded answer and the context that produced it."""
+
+    answer: str
+    model: str
+    used_context: GenerationContext
+    insufficient_evidence: bool = False
+
