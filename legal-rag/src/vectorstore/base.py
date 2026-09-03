@@ -29,6 +29,14 @@ class SearchResult:
     score: float
 
 
+@dataclass(frozen=True)
+class IndexedVector:
+    """A lighter-weight view for search result generation."""
+
+    record: VectorRecord
+    score: float
+
+
 class VectorStore(Protocol):
     """Storage abstraction for indexed embeddings."""
 
@@ -50,4 +58,3 @@ class VectorStore(Protocol):
 
     def search(self, vector: list[float], top_k: int = 5) -> list[SearchResult]:
         ...
-

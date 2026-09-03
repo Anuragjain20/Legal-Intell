@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -49,14 +50,33 @@ class LocalVectorStore:
         return sorted({record.document_id for record in self._records_by_chunk_id.values()})
 
     def search(self, vector: list[float], top_k: int = 5) -> list[SearchResult]:
-        # Retrieval is intentionally out of scope for this story.
-        raise NotImplementedError("Vector search belongs to the retrieval story.")
+        self._validate_vector(vector)
+        scored = [
+            SearchResult(record=record, score=self._cosine_similarity(vector, record.vector))
+            for record in self._records_by_chunk_id.values()
+        ]
+        scored.sort(key=lambda item: item.score, reverse=True)
+        return scored[:top_k]
 
     def _validate_record(self, record: VectorRecord) -> None:
         if len(record.vector) != self.dimension:
             raise VectorDimensionMismatchError(
                 f"Vector dimension mismatch: expected {self.dimension}, got {len(record.vector)}."
             )
+
+    def _validate_vector(self, vector: list[float]) -> None:
+        if len(vector) != self.dimension:
+            raise VectorDimensionMismatchError(
+                f"Query vector dimension mismatch: expected {self.dimension}, got {len(vector)}."
+            )
+
+    def _cosine_similarity(self, left: list[float], right: list[float]) -> float:
+        numerator = sum(a * b for a, b in zip(left, right, strict=True))
+        left_norm = math.sqrt(sum(a * a for a in left))
+        right_norm = math.sqrt(sum(b * b for b in right))
+        if left_norm == 0 or right_norm == 0:
+            return 0.0
+        return numerator / (left_norm * right_norm)
 
     def _load(self) -> None:
         if not self.index_path.exists():
@@ -78,5 +98,4 @@ class LocalVectorStore:
             "records": [asdict(record) for record in self._records_by_chunk_id.values()],
         }
         self.index_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-
 
