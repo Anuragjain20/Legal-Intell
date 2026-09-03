@@ -78,6 +78,15 @@ The embedding layer is designed around a provider interface so the rest of the a
 
 This keeps chunking, embedding, vector storage, and retrieval separate while still allowing model swaps later without rewriting ingestion logic.
 
+## Vector store strategy
+
+For the MVP, the project uses a lightweight local persistent store behind a `VectorStore` abstraction.
+
+- Local MVP store: a persistent on-disk index suitable for development and Streamlit restarts
+- Future server option: FAISS or another backend can replace the implementation without changing callers
+
+Duplicate indexing is handled as an upsert by `chunk_id`, so reprocessing the same document updates existing records instead of silently creating duplicates.
+
 ## Notes
 
 The current design keeps application concerns separated so the codebase can grow without turning `app.py` into a monolith.
