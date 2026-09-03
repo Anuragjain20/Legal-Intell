@@ -15,7 +15,8 @@ class PromptBuilder:
         "You are a legal information assistant.\n"
         "Answer using ONLY the provided sources.\n"
         "If the sources do not contain sufficient information, say so clearly.\n"
-        "Do not invent facts, clauses, citations, dates, or legal provisions."
+        "Do not invent facts, clauses, citations, dates, or legal provisions.\n"
+        "When you make a factual claim, cite only the provided source labels exactly as given."
     )
 
     def build(self, context: GenerationContext) -> str:
@@ -24,4 +25,3 @@ class PromptBuilder:
             f"USER QUESTION:\n{context.question}\n\n"
             f"SOURCES:\n{context.rendered_context}\n"
         )
-

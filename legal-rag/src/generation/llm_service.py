@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
+from src.generation.citations import CitationMapper
 from src.generation.exceptions import GenerationFailure, InsufficientEvidenceError
 from src.generation.models import GenerationContext, GenerationResult
 
@@ -35,6 +36,7 @@ class GenerationService:
     llm_service: LLMService
     context_builder: object
     prompt_builder: object
+    citation_mapper: CitationMapper
     insufficient_evidence_response: str = (
         "I could not find sufficient information in the provided documents to answer this question."
     )
@@ -58,9 +60,17 @@ class GenerationService:
         if not answer.strip():
             raise InsufficientEvidenceError("LLM returned an empty answer.")
 
+        citation_mapping = self.citation_mapper.map(answer, context)
+        if citation_mapping.unresolved_source_ids:
+            raise GenerationFailure(
+                f"LLM referenced unknown sources: {', '.join(citation_mapping.unresolved_source_ids)}"
+            )
+
         return GenerationResult(
             answer=answer,
             model=self.llm_service.client.model_name,
             used_context=context,
+            citations=citation_mapping.citations,
+            unresolved_source_ids=citation_mapping.unresolved_source_ids,
             insufficient_evidence=False,
         )

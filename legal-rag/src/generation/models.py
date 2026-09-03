@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.retrieval.models import RetrievalResult
-
 
 @dataclass(frozen=True)
 class ContextSource:
@@ -37,5 +35,6 @@ class GenerationResult:
     answer: str
     model: str
     used_context: GenerationContext
+    citations: list["Citation"] | None = None
+    unresolved_source_ids: list[str] | None = None
     insufficient_evidence: bool = False
-

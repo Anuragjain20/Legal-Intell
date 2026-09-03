@@ -22,6 +22,7 @@ def initialize_state() -> None:
     st.session_state.setdefault("question", DEFAULT_QUESTION)
     st.session_state.setdefault("last_answer", PLACEHOLDER_ANSWER)
     st.session_state.setdefault("sources", [PLACEHOLDER_SOURCE])
+    st.session_state.setdefault("citations", [])
     st.session_state.setdefault("uploaded_file_name", None)
     st.session_state.setdefault("ask_clicked", False)
     st.session_state.setdefault("upload_message", None)
@@ -32,6 +33,7 @@ def handle_ask() -> None:
     st.session_state.ask_clicked = True
     st.session_state.last_answer = "Retrieval pipeline not connected yet."
     st.session_state.sources = [PLACEHOLDER_SOURCE]
+    st.session_state.citations = []
 
 
 def handle_upload(uploaded_file) -> None:
@@ -93,10 +95,12 @@ def render_answer_section() -> None:
 
 def render_sources_section() -> None:
     st.subheader("Sources")
-    sources = st.session_state.sources or []
-    if sources:
-        for source in sources:
-            st.write(f"- {source}")
+    citations = st.session_state.citations or []
+    if citations:
+        for citation in citations:
+            st.write(
+                f"[{citation['citation_id']}] {citation['document_name']} - Page {citation['page_number']}"
+            )
     else:
         st.write("- Document - Page X")
 
