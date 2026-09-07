@@ -21,7 +21,6 @@ from src.retrieval.exceptions import RetrievalError
 from src.retrieval.retriever import Retriever
 from src.vectorstore.chroma_store import ChromaVectorStore
 from src.vectorstore.service import VectorIndexService
-from src.evaluation.evaluator import RetrievalEvaluator
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -69,8 +68,6 @@ def initialize_state() -> None:
     st.session_state.setdefault("citations", [])
     st.session_state.setdefault("upload_message", None)
     st.session_state.setdefault("trace_data", None)
-    st.session_state.setdefault("evaluation_running", False)
-    st.session_state.setdefault("evaluation_status", None)
 
 
 def index_document(
@@ -353,39 +350,6 @@ def display_trace_tree() -> None:
             st.json(trace)
 
 
-def run_evaluation(retriever: Retriever) -> None:
-    """Run retrieval evaluation and save results."""
-    import json
-
-    dataset_path = DATA_DIR / "evaluation_dataset.json"
-    results_path = DATA_DIR / "evaluation_results.json"
-
-    if not dataset_path.exists():
-        st.session_state.evaluation_status = "❌ Evaluation dataset not found"
-        return
-
-    try:
-        st.session_state.evaluation_status = "🔄 Running evaluation..."
-        st.rerun()
-
-        evaluator = RetrievalEvaluator(retriever, dataset_path)
-        results = evaluator.evaluate(top_k=5)
-        results_dict = evaluator.results_to_dict()
-
-        with open(results_path, "w") as f:
-            json.dump(results_dict, f, indent=2)
-
-        st.session_state.evaluation_status = (
-            f"✅ Evaluation complete! "
-            f"Recall@1: {results.recall_at_1:.4f}, "
-            f"Recall@3: {results.recall_at_3:.4f}, "
-            f"Recall@5: {results.recall_at_5:.4f}, "
-            f"MRR: {results.mrr:.4f}"
-        )
-    except Exception as e:
-        st.session_state.evaluation_status = f"❌ Evaluation failed: {str(e)}"
-
-
 def answer_question(services: tuple) -> None:
     settings = Settings.from_env(APP_DIR / ".env")
     if not settings.deepseek_api_key:
@@ -520,27 +484,11 @@ def main() -> None:
 
     st.divider()
     st.subheader("🧪 Model Testing & Evaluation")
-
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.markdown("Run retrieval evaluation against a curated dataset to measure baseline performance.")
-    with col2:
-        if st.button("Run Evaluation", type="secondary", key="eval_button"):
-            st.session_state.evaluation_running = True
-
-    if st.session_state.evaluation_running:
-        _, _, _, retriever, _ = services
-        run_evaluation(retriever)
-        st.session_state.evaluation_running = False
-
-    if st.session_state.evaluation_status:
-        if "✅" in st.session_state.evaluation_status:
-            st.success(st.session_state.evaluation_status)
-            st.info("📊 View detailed results in the **Evaluation** page in the sidebar")
-        elif "❌" in st.session_state.evaluation_status:
-            st.error(st.session_state.evaluation_status)
-        else:
-            st.info(st.session_state.evaluation_status)
+    st.markdown(
+        "Retrieval evaluation runs as a CLI script against a reproducible dataset "
+        "(`python scripts/run_evaluation.py`), writing versioned results to "
+        "`data/eval_runs/`. See `doc/06-evaluation.md` for the real, measured numbers."
+    )
 
     st.divider()
     display_trace_tree()

@@ -1,24 +1,23 @@
 # Legal RAG
 
-This repository is a small local retrieval-augmented generation application for legal PDFs.
+A local retrieval-augmented generation system over legal PDFs — statutes, contracts, and court judgments. It extracts text, detects legal document structure (sections, sub-sections, clauses, chapters), chunks along those boundaries, embeds locally, indexes in Chroma, retrieves by cosine similarity, and generates grounded answers with citations that are verified against retrieval metadata rather than trusted from the LLM's output.
 
-The goal of this phase is to establish clean boundaries before any RAG logic is added. The app currently ships as a basic Streamlit shell with separate packages reserved for ingestion, retrieval, generation, embeddings, vector store, and configuration concerns.
+**For an honest account of what's actually implemented, tested, and measured — including known gaps and a documented retraction of an earlier fabricated benchmark — see [`doc/README.md`](doc/README.md).** That folder is the source of truth for this project's real state.
 
-## What the project does
+## What it does
 
-Right now, the project provides:
+- PDF text extraction, with legal-structure-aware detection of chapters, sections, lettered sub-sections, nested clauses, and case-law headings (`FACTS`, `ISSUES`, `HELD`)
+- Chunking that groups by detected structure first, falling back to size-based splitting only for oversized paragraphs
+- Local embeddings (`BAAI/bge-small-en-v1.5` via `sentence-transformers`), persisted in Chroma
+- Dense retrieval with a similarity threshold and a hand-rolled re-ranker
+- Grounded generation via DeepSeek, with citations resolved against retrieval metadata — never trusted from model output
+- A reproducible retrieval evaluation harness: an independently-phrased, span-grounded question set, run via a CLI script, with versioned results written per run
 
-- A Streamlit entry point in `app.py`
-- A source layout that separates future responsibilities
-- Dedicated folders for uploaded documents and processed artifacts
-- A lightweight foundation for tests and configuration
+## What it doesn't do (yet)
 
-It extracts text from PDFs, chunks and embeds it locally, stores vectors in persistent Chroma,
-retrieves relevant passages, and uses DeepSeek for grounded answers with source citations.
+No OCR for scanned PDFs, no auth, no metadata filtering at the retrieval layer, no generation/faithfulness evaluation. BM25, query analysis, and reranking modules exist in `src/` but are not wired into the live retrieval path — see `doc/01-architecture.md`.
 
 ## Installation
-
-Create and activate a virtual environment, then install dependencies:
 
 ```bash
 python -m venv .venv
@@ -26,52 +25,49 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Copy `.env.example` to `.env` and add your `DEEPSEEK_API_KEY` before asking questions.
+Copy `.env.example` to `.env` and add your `DEEPSEEK_API_KEY`.
 
 ## Run
-
-Start the application with:
 
 ```bash
 streamlit run app.py
 ```
 
-## Current architecture
+## Ingest documents
 
-The structure is intentionally simple:
+```bash
+python scripts/ingest.py --source /path/to/category-organized/pdfs
+```
 
-- `app.py` - Streamlit application entry point
-- `src/ingestion/` - PDF validation, extraction, and legal-aware chunking
-- `src/retrieval/` - embedding search and ranking
-- `src/generation/` - prompt construction, DeepSeek generation, and citations
-- `src/embeddings/` - local Hugging Face embedding provider
-- `src/vectorstore/` - Chroma persistence behind a small interface
-- `src/config/` - environment settings
-- `tests/` - automated tests
-- `data/documents/` - raw uploaded documents
-- `data/processed/` - processed artifacts such as chunks or indexes
+## Run evaluation
 
-## Current implementation status
+```bash
+python scripts/run_evaluation.py
+```
 
-The MVP deliberately does not include authentication, OCR for scanned PDFs, metadata filters,
-or agent workflows such as LangGraph.
+Writes a manifest and full results to `data/eval_runs/<timestamp>/results.json`. See [`doc/06-evaluation.md`](doc/06-evaluation.md) for the current real numbers and what they mean.
 
-## Embedding strategy
+## Layout
 
-The embedding layer is designed around a provider interface so the rest of the app does not depend on one model or API.
-
-- Local/default option: a Hugging Face `sentence-transformers` model, currently `BAAI/bge-small-en-v1.5`
-- Server-side options: LangChain adapters can wrap providers such as Hugging Face, OpenAI, or other supported backends
-
-This keeps chunking, embedding, vector storage, and retrieval separate while still allowing model swaps later without rewriting ingestion logic.
-
-## Vector store strategy
-
-For the MVP, the project uses persistent local Chroma behind a `VectorStore` abstraction.
-The same interface can later support a hosted Chroma instance, pgvector, or another backend.
-
-Duplicate indexing is handled as an upsert by `chunk_id`, so reprocessing the same document updates existing records instead of silently creating duplicates.
-
-## Notes
-
-The current design keeps application concerns separated so the codebase can grow without turning `app.py` into a monolith.
+```
+app.py                 Streamlit UI + service wiring
+src/
+  config/              Environment-driven settings
+  ingestion/           PDF -> pages -> structure detection -> chunks
+  embeddings/          Chunk/query text -> vectors
+  vectorstore/         Chroma persistence + similarity search
+  retrieval/           Query -> ranked results
+  generation/          Context building, prompting, DeepSeek call, citations
+  evaluation/          Metrics, span matching, evaluation harness
+scripts/
+  ingest.py            Corpus ingestion CLI
+  run_evaluation.py    Retrieval evaluation CLI
+  validate_dataset.py  Verifies the eval dataset's spans against the live index
+tests/                 Automated tests, one file per src/ module roughly
+data/
+  documents/           Uploaded/ingested source PDFs
+  chroma/              Persistent vector index
+  evaluation_dataset.json   Evaluation question set
+  eval_runs/           One directory per evaluation run, with manifest + results
+doc/                   Detailed, verified documentation — start at doc/README.md
+```

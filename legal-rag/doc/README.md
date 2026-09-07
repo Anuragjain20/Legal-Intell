@@ -5,7 +5,7 @@ This folder documents the actual, as-implemented system in `legal-rag/`, for two
 1. Understand the project end to end (architecture, data flow, design decisions).
 2. Prepare to defend it in a RAG-focused interview — what's built, what's fake/aspirational in the repo's other markdown files, what's missing, and how to answer follow-up questions.
 
-**Ground rule used throughout this doc set:** every claim is backed by `file.py:line`, a test, or a command you can re-run. The repository root already contains ~13 markdown files (`START_HERE.md`, `EVALUATION.md`, etc.) written in an aspirational, marketing-ish voice — one of them prints `Recall@1: 0.76` as a *sample* output, not a measured result. **Treat those as untrusted.** This `doc/` folder is the only place in the repo that states what was actually measured, with the command used to measure it.
+**Ground rule used throughout this doc set:** every claim is backed by `file.py:line`, a test, or a command you can re-run. This `doc/` folder is the only place in the repo that states what was actually measured, with the command used to measure it — an earlier set of root-level markdown files made aspirational or outright fabricated claims (including a benchmark table that was never produced by any script) and has been removed; see [09-retractions.md](09-retractions.md).
 
 ## 60-second pitch
 
@@ -27,21 +27,20 @@ The one deliberate design bet worth leading with in an interview: **citations ar
 | [06-evaluation.md](06-evaluation.md) | What the eval harness actually measures, real numbers from this repo, a genuine bug in it, and what it doesn't measure |
 | [07-interview-narrative.md](07-interview-narrative.md) | A rehearsable story: what I built, why, trade-offs, what I'd do next |
 | [08-question-bank.md](08-question-bank.md) | Likely interview questions with grounded answers (file/line citations), including "gotcha" questions about this specific codebase's weak spots |
+| [09-retractions.md](09-retractions.md) | What was fabricated in an earlier version of this repo, and why it was removed rather than quietly fixed |
 
 ## How to re-verify anything in this doc set yourself
 
 ```bash
-# Run the real test suite (107 pass / 4 fail as of this writing — see 06 for why)
+# Run the real test suite (254 pass / 59 fail / 1 xfail as of this writing — see 06 for why)
 python -m pytest -q
 
-# See the real, measured retrieval numbers (not the ones in START_HERE.md)
-cat data/evaluation_results.json
+# Re-ingest the corpus from source PDFs into a fresh Chroma collection
+python scripts/ingest.py --source <path to source PDFs>
 
-# Regenerate the eval dataset from whatever is currently indexed in Chroma
-python build_valid_evaluation_dataset.py
-
-# Re-run evaluation against the current index
-python run_evaluation_real.py
+# Re-run retrieval evaluation against the current index
+python scripts/run_evaluation.py
+cat data/eval_runs/<latest timestamp>/results.json
 
 # Start the app (needs DEEPSEEK_API_KEY in .env for the generation step)
 streamlit run app.py
@@ -59,11 +58,15 @@ legal-rag/
     vectorstore/                Vector persistence + similarity search
     retrieval/                  Query → ranked results
     generation/                  Context + prompt + LLM call + citations
-    evaluation/                  Retrieval-only eval harness
-  tests/                      111 tests, one per src/ module roughly
+    evaluation/                  Retrieval-only eval harness (metrics.py, matching.py, harness.py)
+  scripts/
+    ingest.py                  Corpus ingestion CLI
+    run_evaluation.py          Retrieval evaluation CLI, writes data/eval_runs/<timestamp>/
+    validate_dataset.py        Verifies eval dataset spans still match the live index
+  tests/                      314 tests, one per src/ module roughly
   data/
     documents.json            Upload registry
     chroma/                    Persistent Chroma collection (the real index)
-    evaluation_dataset.json    Template-generated eval questions (see 06)
-    evaluation_results.json    Last real run's output
+    evaluation_dataset.json    Independently-phrased, span-grounded eval questions (see 06)
+    eval_runs/<timestamp>/     Each evaluation run's manifest + results, one directory per run
 ```
