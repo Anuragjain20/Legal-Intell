@@ -1,0 +1,443 @@
+{
+  "metadata": {
+    "version": "3.0",
+    "created_at": "2026-09-07",
+    "corpus": "Mixed legal corpus (Indian statutes, US affiliate agreements, Supreme Court / Delhi HC judgments)",
+    "total_questions": 42,
+    "notes": "Ground truth anchored on (document_name, verbatim answer span), not chunk_id or section. Questions are independently phrased, not templated from chunk metadata, to avoid retrieval leakage. chunk_id (anchor_chunk_id) retained as a secondary/debug signal only, not used for scoring. Sections in this corpus are bare ordinals (e.g. '4', '(v)') that repeat across unrelated documents, so section-based matching is not used.",
+    "schema_notes": "question_type in {direct_factual, section_clause, multi_section, obligation_risk, comparison, unanswerable}. For unanswerable cases, expected_document/expected_answer_span/anchor_chunk_id are all null and the system is scored on whether it refuses rather than on retrieval. requires_multiple_documents=true marks comparison questions spanning two source documents; expected_document/anchor_chunk_id/expected_answer_span use '; ' as a separator for those cases. A field may also hold multiple spans within a single document, joined with ' ||| ', for multi_section cases whose evidence spans more than one chunk."
+  },
+  "questions": [
+    {
+      "id": "Q001",
+      "question": "Under the Indian Contract Act, what is the technical legal term for an act or promise done at the desire of the promisor that makes a promise enforceable?",
+      "question_type": "direct_factual",
+      "expected_document": "indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0283",
+      "expected_answer_span": "such act or abstinence or promise is called a consideration for the promise",
+      "expected_answer": "Consideration. Section 2(d) of the Indian Contract Act, 1872 defines it as an act, abstinence, or promise done at the desire of the promisor by the promisee or another person.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q002",
+      "question": "When is the revocation of a contract proposal considered complete as against the person who made it?",
+      "question_type": "direct_factual",
+      "expected_document": "indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0291",
+      "expected_answer_span": "as against the person who m akes it, when it is put into a course of transmission to the p erson to\nwhom it is made, so as to be out of the power of the person who makes it",
+      "expected_answer": "Under Section 4, revocation is complete against the person revoking when it is put into a course of transmission to the other party, putting it out of the revoker's own power to stop.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q003",
+      "question": "What is the legal definition of 'coercion' under the Indian Contract Act?",
+      "question_type": "direct_factual",
+      "expected_document": "indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0308",
+      "expected_answer_span": "is the committing, or threatening to commit, any act forbidden\nby the Indian Penal Code (45 of 1860)or the unlawful detaining, or threatening to detain, any property, to\nthe prejudice of any person whatever, with the intention of causing any person to enter into an agreement",
+      "expected_answer": "Section 15 defines coercion as committing or threatening to commit an act forbidden by the Indian Penal Code, or unlawfully detaining or threatening to detain property, to the prejudice of any person, with the intent to cause that person to enter into an agreement.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q004",
+      "question": "Can a person who is usually of unsound mind ever validly enter into a contract?",
+      "question_type": "direct_factual",
+      "expected_document": "indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0303",
+      "expected_answer_span": "A person who is usually of unsound mind, but occasionally of sound mind, may",
+      "expected_answer": "Yes. Section 12 provides that a person usually of unsound mind may contract during intervals when they are of sound mind (and conversely, a usually sound-minded person cannot contract while of unsound mind).",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q005",
+      "question": "According to the Bharatiya Nyaya Sanhita, 2023, does an Indian citizen who commits an offence outside India remain liable to be tried under the Sanhita?",
+      "question_type": "direct_factual",
+      "expected_document": "bharatiya_nyaya_sanhita_2023.pdf",
+      "anchor_chunk_id": "ff92dcc72778944011807644b6033b1140ddbe6d7e9f82ac32fd419dae03aa86:0370",
+      "expected_answer_span": "Any person liable, by any law for the time being in force in India, to be tried for an offence committed beyond India shall be dealt with according to the provisions of this Sanhita for any act committed beyond India in the same manner as if such act had been committed within India",
+      "expected_answer": "Yes. Section 1(4) provides that a person liable under Indian law to be tried for an offence committed outside India is dealt with under the Sanhita as if the act had been committed within India, and Section 1(5)(a) extends this specifically to Indian citizens.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q006",
+      "question": "How does the Bharatiya Nyaya Sanhita, 2023 define 'child' for the purposes of the Sanhita?",
+      "question_type": "direct_factual",
+      "expected_document": "bharatiya_nyaya_sanhita_2023.pdf",
+      "anchor_chunk_id": "ff92dcc72778944011807644b6033b1140ddbe6d7e9f82ac32fd419dae03aa86:0374",
+      "expected_answer_span": "“child” means any person below the age of eighteen years",
+      "expected_answer": "Section 2(3) defines a 'child' as any person below the age of eighteen years.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q007",
+      "question": "In the LinkPlus-Axiometric agreement, how much notice must Axiometric give before it can terminate its license to use the office space?",
+      "question_type": "section_clause",
+      "expected_document": "LinkPlusCorp_20050802_8-K_EX-10_3240252_EX-10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0013",
+      "expected_answer_span": "Axiometric will have the right to terminate the license to use the office space and to move out of the office space at any time upon two weeks notice",
+      "expected_answer": "Two weeks' notice, per clause 2.6 of the agreement.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q008",
+      "question": "In the LinkPlus-Axiometric agreement, what interest rate applies to late payments, and how often is it compounded?",
+      "question_type": "section_clause",
+      "expected_document": "LinkPlusCorp_20050802_8-K_EX-10_3240252_EX-10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0035",
+      "expected_answer_span": "will bear interest at the rate of twelve percent (12.0%) per annum compounded monthly",
+      "expected_answer": "12% per annum, compounded monthly, per clause 3.5.2.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q009",
+      "question": "In the LinkPlus-Axiometric agreement, within how many days of the end of each calendar quarter must payments be made?",
+      "question_type": "section_clause",
+      "expected_document": "LinkPlusCorp_20050802_8-K_EX-10_3240252_EX-10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0034",
+      "expected_answer_span": "Payments due shall be made within 45 days of the close of each calendar quarter",
+      "expected_answer": "Within 45 days of the close of each calendar quarter, per clause 3.5.1.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q010",
+      "question": "In the NCM Network Affiliate agreement, how many days after a Disposition is NCM permitted to enter the affected theatre and remove its equipment?",
+      "question_type": "section_clause",
+      "expected_document": "DigitalCinemaDestinationsCorp_20111220_S-1_EX-10.10_7346719_EX-10.10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "bdb7d1532a642920cd915516243718bfbcf6c436248902c58b97c4cc005b317d:0024",
+      "expected_answer_span": "at least thirty (30) days prior to any Disposition, NCM shall be permitted to enter the affected Theatre(s) and remove any NCM Property",
+      "expected_answer": "NCM may enter the theatre to remove its equipment starting thirty days before the disposition date, per clause 2.6(a).",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q011",
+      "question": "What is the maximum dollar amount NCM is obligated to spend per screen when acquiring 'small d' equipment for Network Affiliate theatres?",
+      "question_type": "section_clause",
+      "expected_document": "DigitalCinemaDestinationsCorp_20111220_S-1_EX-10.10_7346719_EX-10.10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "bdb7d1532a642920cd915516243718bfbcf6c436248902c58b97c4cc005b317d:0017",
+      "expected_answer_span": "NCM shall not be obligated to spend more than $9,000 per screen",
+      "expected_answer": "$9,000 per screen, per clause 2.1(b).",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q012",
+      "question": "In the Axiometric-LinkPlus AMR partnership, what royalty percentage does LKPL pay Axiometric on sales to entities other than Datamatic?",
+      "question_type": "section_clause",
+      "expected_document": "LinkPlusCorp_20050802_8-K_EX-10_3240252_EX-10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0029",
+      "expected_answer_span": "For sales of AMR Product Suites by LKPL, other than sales to Datamatic as defined above: LKPL shall pay Axiometric the higher of: a) five-percent (5%) of the Gross Proceeds OR b) twenty-percent (25%",
+      "expected_answer": "LKPL pays Axiometric the higher of 5% of Gross Proceeds or 20-25% of Net Proceeds (clause 3.3.3) on such sales.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q013",
+      "question": "In the NCM Network Affiliate agreement, how many days' advance written notice must a Network Affiliate give before disposing of a theatre, and how many days before that disposition may NCM enter the theatre to remove its equipment?",
+      "question_type": "multi_section",
+      "expected_document": "DigitalCinemaDestinationsCorp_20111220_S-1_EX-10.10_7346719_EX-10.10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "bdb7d1532a642920cd915516243718bfbcf6c436248902c58b97c4cc005b317d:0024",
+      "expected_answer_span": "at least six (6) months advance\nwritten notice (or such lesser time for notice as may be practicable based upon the date of execution of the agreement for such disposition and the\ndisposition date) of the sale or other disposition of a Theatre, the loss of any Theatre lease, or its desire to permanently discontinue delivery of the\nService to a Theatre (collectively, a “Disposition ”). Subject to the provisions of Section 2.3 with respect to transfer of title to NCM Equipment, at\nleast thirty (30) days prior to any Disposition, NCM shall be permitted to enter the affected Theatre(s) and remove any NCM Property",
+      "expected_answer": "Six months' advance written notice of the disposition, and NCM may enter to remove its equipment starting thirty days before the disposition date (clause 2.6(a)).",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q014",
+      "question": "In the LinkPlus-Axiometric agreement, what happens if a payment is not received within 30 days of its due date, and what additional consequence applies if it is still unpaid after 60 days?",
+      "question_type": "multi_section",
+      "expected_document": "LinkPlusCorp_20050802_8-K_EX-10_3240252_EX-10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0035; d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0036",
+      "expected_answer_span": "Payments that are not received within thirty (30)\ndays after their due date will bear interest at the\nrate of twelve percent (12.0%) per annum compounded\nmonthly from the due date until such payment is\nreceived. ||| 3.5.3    Payments not received within sixty (60) days after\ntheir due date will be considered a material breach\nof this Agreement",
+      "expected_answer": "After 30 days late, the payment accrues interest at 12% per annum compounded monthly (clause 3.5.2). After 60 days late, it is treated as a material breach of the agreement, entitling the unpaid party to pursue legal action and recover legal fees (clause 3.5.3).",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q015",
+      "question": "According to Section 2 of the Indian Contract Act, what is the difference between a 'void agreement' and a 'voidable contract'?",
+      "question_type": "multi_section",
+      "expected_document": "indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0286; d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0288",
+      "expected_answer_span": "An agreement not enforceable by law is said to be void ||| An agreement which is enforceable by law at the option of one or more of the parties thereto, but not at the option of the other or others, is a voidable contract",
+      "expected_answer": "A void agreement (Section 2(g)) is not enforceable by law at all. A voidable contract (Section 2(i)) is enforceable by law at the option of one or more parties, but not at the option of the others.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q016",
+      "question": "Under the Indian Contract Act, what makes consent 'free', and what are the grounds that can prevent consent from being free?",
+      "question_type": "multi_section",
+      "expected_document": "indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0306; d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0307",
+      "expected_answer_span": "Two or more persons are said to consent when they agree upon th e same\nthing in the same sense ||| Consent is said to be free when it is not caused by",
+      "expected_answer": "Consent (Section 13) exists when two or more persons agree on the same thing in the same sense. Consent is 'free' (Section 14) when it is not caused by coercion, undue influence, fraud, misrepresentation, or mistake.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q017",
+      "question": "If a contract's consent was caused by fraud, what options does the Indian Contract Act give to the party who was defrauded?",
+      "question_type": "multi_section",
+      "expected_document": "indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0324",
+      "expected_answer_span": "the agreement is a contract voidable at the option of the party whose consent was so caused",
+      "expected_answer": "Under Section 19, the agreement is voidable at the option of the defrauded party, who may insist that the contract be performed and be put in the position they would have been in had the misrepresentation been true.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q018",
+      "question": "What is Axiometric's indemnification obligation to LKPL regarding use of the office space?",
+      "question_type": "obligation_risk",
+      "expected_document": "LinkPlusCorp_20050802_8-K_EX-10_3240252_EX-10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0015",
+      "expected_answer_span": "Axiometric must indemnify and hold LKPL and its officers,\ndirectors, stockholders, agents, contractors, employees and\nguests (collectively, the \"Indemnified Parties\") harmless from\nand against any and all Loss that the Indemnified Parties may\nincur arising from or relating to Axiometric use of the office\nspace",
+      "expected_answer": "Axiometric must indemnify and hold LKPL and its officers, directors, stockholders, agents, contractors, employees and guests harmless against any loss arising from Axiometric's use of the office space, including losses from its own negligent acts or omissions (clause 2.8).",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q019",
+      "question": "What financial risk does a Network Affiliate take on if it wants to discontinue Digital Cinema Service to a theatre outside of a permitted disposition?",
+      "question_type": "obligation_risk",
+      "expected_document": "DigitalCinemaDestinationsCorp_20111220_S-1_EX-10.10_7346719_EX-10.10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "bdb7d1532a642920cd915516243718bfbcf6c436248902c58b97c4cc005b317d:0024",
+      "expected_answer_span": "Except in\nconnection with a Disposition, Network Affiliate shall not be permitted to permanently discontinue Service to any Theatre without the prior written\nconsent of NCM",
+      "expected_answer": "Outside of a proper Disposition, the Network Affiliate needs NCM's prior written consent to discontinue Service, and in any event it bears the cost of removing NCM's equipment from the theatre (clause 2.6(a)).",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q020",
+      "question": "What obligation does Network Affiliate have regarding the security of NCM's Equipment while it is installed in the theatres?",
+      "question_type": "obligation_risk",
+      "expected_document": "DigitalCinemaDestinationsCorp_20111220_S-1_EX-10.10_7346719_EX-10.10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "bdb7d1532a642920cd915516243718bfbcf6c436248902c58b97c4cc005b317d:0022",
+      "expected_answer_span": "to any Theatre or otherwise in the possession, custody or control of Network Affiliate is secure and not accessible by authorized third parties",
+      "expected_answer": "Network Affiliate is obligated to ensure NCM's equipment in its possession, custody, or control remains secure and is not accessible by unauthorized third parties.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q021",
+      "question": "Under the Indian Contract Act, what risk does a party take on if they contract with someone whose mental capacity is temporarily affected due to illness, and that party is in a dominant position over them?",
+      "question_type": "obligation_risk",
+      "expected_document": "indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0310",
+      "expected_answer_span": "where he holds a real or apparent authority over the other , or where he stands in a fiduciary\nrelation to the other",
+      "expected_answer": "Such a contract risks being classified as procured by undue influence under Section 16, since the dominant party is presumed to have used their position unfairly, and where the transaction appears unconscionable, the burden shifts to the dominant party to prove undue influence was not used.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q022",
+      "question": "Under the Bharatiya Nyaya Sanhita, what liability exposure does a person face for committing an offence targeting a computer resource located in India, even if that person is outside India at the time?",
+      "question_type": "obligation_risk",
+      "expected_document": "bharatiya_nyaya_sanhita_2023.pdf",
+      "anchor_chunk_id": "ff92dcc72778944011807644b6033b1140ddbe6d7e9f82ac32fd419dae03aa86:0373",
+      "expected_answer_span": "any person in any place without and beyond India committing offence targeting a computer resource located in India",
+      "expected_answer": "Section 1(5)(c) extends the Sanhita's application to any person outside India who commits an offence targeting a computer resource located in India, so they remain liable under the Sanhita despite being physically outside the country.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q023",
+      "question": "Compare the office-space termination notice period in the LinkPlus-Axiometric agreement with the theatre-disposition notice period in the NCM Network Affiliate agreement. Which requires longer advance notice?",
+      "question_type": "comparison",
+      "expected_document": "LinkPlusCorp_20050802_8-K_EX-10_3240252_EX-10_Affiliate Agreement.pdf; DigitalCinemaDestinationsCorp_20111220_S-1_EX-10.10_7346719_EX-10.10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0013; bdb7d1532a642920cd915516243718bfbcf6c436248902c58b97c4cc005b317d:0024",
+      "expected_answer_span": "at any time upon two weeks notice ||| at least six (6) months advance written notice",
+      "expected_answer": "The NCM agreement requires much longer notice: six months for a theatre disposition, versus only two weeks for Axiometric to terminate its office-space license in the LinkPlus agreement.",
+      "is_out_of_corpus": false,
+      "requires_multiple_documents": true
+    },
+    {
+      "id": "Q024",
+      "question": "Compare the late-payment consequences in the LinkPlus-Axiometric agreement with the equipment cost allocation in the NCM Network Affiliate agreement's disposition clause — which one imposes a specific numeric penalty (interest rate or percentage) on a party?",
+      "question_type": "comparison",
+      "expected_document": "LinkPlusCorp_20050802_8-K_EX-10_3240252_EX-10_Affiliate Agreement.pdf; DigitalCinemaDestinationsCorp_20111220_S-1_EX-10.10_7346719_EX-10.10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0035; bdb7d1532a642920cd915516243718bfbcf6c436248902c58b97c4cc005b317d:0024",
+      "expected_answer_span": "will bear interest at the rate of twelve percent (12.0%) per annum compounded monthly ||| The costs of removal of NCM Equipment from any Theatre to which Service has been permanently discontinued shall be borne by Network Affiliate",
+      "expected_answer": "The LinkPlus agreement imposes a specific numeric penalty: 12% per annum compounded monthly on late payments. The NCM disposition clause allocates a cost (equipment removal) to the Network Affiliate but does not specify a percentage or interest rate.",
+      "is_out_of_corpus": false,
+      "requires_multiple_documents": true
+    },
+    {
+      "id": "Q025",
+      "question": "Both the Indian Contract Act's definition of 'undue influence' and 'coercion' describe ways consent can be improperly obtained. Which of the two relies on a relationship of dominance or authority between the parties, and which relies on threats of unlawful acts?",
+      "question_type": "comparison",
+      "expected_document": "indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0310; d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0308",
+      "expected_answer_span": "where he holds a real or apparent authority over the other , or where he stands in a fiduciary\nrelation to the other ||| the committing, or threatening to commit, any act forbidden\nby the Indian Penal Code",
+      "expected_answer": "Undue influence (Section 16) relies on a relationship of real or apparent authority or a fiduciary relation between the parties. Coercion (Section 15) relies on committing or threatening an unlawful act or unlawfully detaining property.",
+      "is_out_of_corpus": false,
+      "requires_multiple_documents": false
+    },
+    {
+      "id": "Q026",
+      "question": "Compare how the Indian Contract Act defines 'fraud' versus 'misrepresentation' — what is the key distinguishing element between the two?",
+      "question_type": "comparison",
+      "expected_document": "indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0316; d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0323",
+      "expected_answer_span": "with intent to deceive another party ||| the positive assertion, in a manner not warranted by the information of the person making it, of that which is not true, though he believes it to be true",
+      "expected_answer": "Fraud (Section 17) requires intent to deceive. Misrepresentation (Section 18) covers false statements made without any intent to deceive — the person believes the statement to be true when making it.",
+      "is_out_of_corpus": false,
+      "requires_multiple_documents": false
+    },
+    {
+      "id": "Q027",
+      "question": "What does the Indian Contract Act, 1872 say about the maximum permissible interest rate a lender may charge on a loan?",
+      "question_type": "unanswerable",
+      "expected_document": null,
+      "anchor_chunk_id": null,
+      "expected_answer_span": null,
+      "expected_answer": null,
+      "is_out_of_corpus": true,
+      "refusal_reason": "The Indian Contract Act, 1872 does not cap interest rates; usury/interest-rate ceilings are governed by other statutes (e.g., RBI regulations, state moneylending acts) not present in this corpus. A correct system should refuse or state the information is not found, not fabricate a rate."
+    },
+    {
+      "id": "Q028",
+      "question": "What termination fee must Network Affiliate pay NCM if it wants to exit the agreement early due to a change in ownership?",
+      "question_type": "unanswerable",
+      "expected_document": null,
+      "anchor_chunk_id": null,
+      "expected_answer_span": null,
+      "expected_answer": null,
+      "is_out_of_corpus": true,
+      "refusal_reason": "No 'change of ownership' early-termination fee clause was located in the indexed excerpt of this agreement. The system should refuse rather than inventing a number by analogy to other clauses (e.g. the 12% late-payment interest in a different contract)."
+    },
+    {
+      "id": "Q029",
+      "question": "What is the minimum wage prescribed under the Bharatiya Nyaya Sanhita, 2023 for factory workers?",
+      "question_type": "unanswerable",
+      "expected_document": null,
+      "anchor_chunk_id": null,
+      "expected_answer_span": null,
+      "expected_answer": null,
+      "is_out_of_corpus": true,
+      "refusal_reason": "The Bharatiya Nyaya Sanhita is a criminal code, not labour legislation; it contains no minimum wage provisions. Minimum wages are set by the Code on Wages / Minimum Wages Act, which are not part of this corpus. The system should refuse rather than conflating it with an unrelated statute."
+    },
+    {
+      "id": "Q030",
+      "question": "According to the Axiometric-LinkPlus agreement, what is the specific royalty rate LKPL pays for sales made through its subsidiary in the European Union?",
+      "question_type": "unanswerable",
+      "expected_document": null,
+      "anchor_chunk_id": null,
+      "expected_answer_span": null,
+      "expected_answer": null,
+      "is_out_of_corpus": true,
+      "refusal_reason": "The indexed clauses distinguish sales to Datamatic vs. other buyers and describe territory restricted to outside the US, but no EU-subsidiary-specific royalty rate appears in the corpus. A correct system should not blend the Datamatic rate with a fabricated EU-specific rate."
+    },
+    {
+      "id": "Q031",
+      "question": "What appellate court fee must be paid to file a Special Leave Petition against a Delhi High Court tax judgment in this corpus?",
+      "question_type": "unanswerable",
+      "expected_document": null,
+      "anchor_chunk_id": null,
+      "expected_answer_span": null,
+      "expected_answer": null,
+      "is_out_of_corpus": true,
+      "refusal_reason": "Court fee schedules are set by separate Court Fees Act / Supreme Court Rules, not stated within the judgment text itself. The corpus contains the judgments' substantive holdings but not a court-fee schedule, so the system should refuse rather than guessing a figure."
+    },
+    {
+      "id": "Q032",
+      "question": "What is the process for a Network Affiliate to add newly built or acquired theatres to the agreement, and does it require NCM's approval?",
+      "question_type": "section_clause",
+      "expected_document": "DigitalCinemaDestinationsCorp_20111220_S-1_EX-10.10_7346719_EX-10.10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "bdb7d1532a642920cd915516243718bfbcf6c436248902c58b97c4cc005b317d:0025",
+      "expected_answer_span": "Any Network Affiliate theatre built or acquired following the Effective Date shall, upon mutual agreement of the parties, become a Theatre, and the capital costs of equipping all such new Theatres to receive the Service shall be as mutually agreed",
+      "expected_answer": "A newly built or acquired theatre becomes a covered Theatre only upon mutual agreement of both parties, and the capital cost of equipping it is likewise set by mutual agreement (clause 2.6(b)).",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q033",
+      "question": "What audit rights does a party have under the LinkPlus-Axiometric agreement if it suspects it has been underpaid?",
+      "question_type": "obligation_risk",
+      "expected_document": "LinkPlusCorp_20050802_8-K_EX-10_3240252_EX-10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0037",
+      "expected_answer_span": "Both parties are entitled to reports of sales and to conduct periodic audits to ensure accuracy of Payments",
+      "expected_answer": "Both parties are entitled to receive sales reports and to conduct periodic audits to verify payment accuracy (clause 3.5.4); if an audit reveals underpayment of more than 3%, the underpaying party bears the cost of the audit and must pay the deficiency.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q034",
+      "question": "Under the Indian Contract Act, what happens to a proposal that is not accepted within the time it prescribes, or, if no time is prescribed, within a reasonable time?",
+      "question_type": "direct_factual",
+      "expected_document": "indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0297",
+      "expected_answer_span": "by the lapse of the time prescribed in such proposal for its acceptance, or, if no time is so prescribed, by the lapse of a reasonable time, without communication of the acceptance",
+      "expected_answer": "The proposal is revoked by lapse of time — either the time it prescribed for acceptance, or, if none was prescribed, a reasonable time, if acceptance was not communicated within that period (Section 6).",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q035",
+      "question": "What must an acceptance be, in order to convert a proposal into a binding promise under the Indian Contract Act?",
+      "question_type": "direct_factual",
+      "expected_document": "indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0298",
+      "expected_answer_span": "the acceptance\nmust—\n(1) be absolute and unqualified;\n(2) be expressed in some usual and reasonable manner",
+      "expected_answer": "Under Section 7, the acceptance must be absolute and unqualified, and must be expressed in some usual and reasonable manner (or the manner prescribed by the proposal).",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q036",
+      "question": "In the Axiometric-LinkPlus AMR partnership, who owns the intellectual property developed jointly in the course of the Water Meter development?",
+      "question_type": "section_clause",
+      "expected_document": "LinkPlusCorp_20050802_8-K_EX-10_3240252_EX-10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0018",
+      "expected_answer_span": "New software and hardware designs and intellectual property developed in the course of the Water Meter development are jointly owned",
+      "expected_answer": "New software, hardware designs, and intellectual property developed during the Water Meter's development are jointly owned by both parties (clause 3.1.1).",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q037",
+      "question": "Does the Bharatiya Nyaya Sanhita consider a written power-of-attorney to be a 'document' for purposes of the Sanhita?",
+      "question_type": "direct_factual",
+      "expected_document": "bharatiya_nyaya_sanhita_2023.pdf",
+      "anchor_chunk_id": "ff92dcc72778944011807644b6033b1140ddbe6d7e9f82ac32fd419dae03aa86:0378",
+      "expected_answer_span": "A power-of-attorney is a document",
+      "expected_answer": "Yes. Section 2's illustrations to the definition of 'document' expressly state that a power-of-attorney is a document.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q038",
+      "question": "Compare Section 2's definition of 'child' under the Bharatiya Nyaya Sanhita with the age-of-majority requirement for contractual competence under the Indian Contract Act — do the two statutes use the same age threshold?",
+      "question_type": "comparison",
+      "expected_document": "bharatiya_nyaya_sanhita_2023.pdf; indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "ff92dcc72778944011807644b6033b1140ddbe6d7e9f82ac32fd419dae03aa86:0374; d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0302",
+      "expected_answer_span": "“child” means any person below the age of eighteen years ||| Every person is competent to contract who is of the age of\nmajority according to th e law to which he is subject",
+      "expected_answer": "The BNS fixes a specific numeric threshold of 18 years for 'child'. The Contract Act does not itself state an age; it defers to 'the law to which he is subject' (the Indian Majority Act, generally 18) for the age of majority. They are not directly comparable on the same textual basis since the Contract Act's threshold is external to the quoted section.",
+      "is_out_of_corpus": false,
+      "requires_multiple_documents": true
+    },
+    {
+      "id": "Q039",
+      "question": "What must a Network Affiliate do if a Payee's audit under the LinkPlus-Axiometric agreement reveals an underpayment of more than 3%?",
+      "question_type": "obligation_risk",
+      "expected_document": "LinkPlusCorp_20050802_8-K_EX-10_3240252_EX-10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0038",
+      "expected_answer_span": "In the event a Payee's audit shows that the Gross Proceeds or Production Costs of the Payor resulted in an under-payment of more than three percent (3.0%) to the Payee, then the Payor shall have the right",
+      "expected_answer": "If an audit shows underpayment of more than 3%, the underpaying party (Payor) must pay the deficiency within fifteen days of being invoiced, and bears the cost of the audit (clause 3.5.4(d)).",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q040",
+      "question": "Under the Indian Contract Act, is a party who innocently makes a false statement they honestly believe to be true still liable for misrepresentation?",
+      "question_type": "direct_factual",
+      "expected_document": "indian_contract_act_1872.pdf",
+      "anchor_chunk_id": "d756d45a58c4cd8440e70a0189ea1fda9d7c5dfcdd6ef31a5f2ecd9cb209c59d:0323",
+      "expected_answer_span": "the positive assertion, in a manner not warranted by the information of the person making it, of that which is not true, though he believes it to be true",
+      "expected_answer": "Yes. Section 18 defines misrepresentation to include a positive assertion of something untrue made without adequate warrant, even though the person believes it to be true — good faith belief does not prevent it from being misrepresentation.",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q041",
+      "question": "What obligation does the LinkPlus-Axiometric agreement impose on Axiometric regarding how it uses the office space in relation to LKPL's own lease?",
+      "question_type": "obligation_risk",
+      "expected_document": "LinkPlusCorp_20050802_8-K_EX-10_3240252_EX-10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0014",
+      "expected_answer_span": "Axiometric must at all times use the office space strictly in accordance with terms and conditions stated in LKPL's lease for the space",
+      "expected_answer": "Axiometric must at all times use the office space strictly in accordance with the terms and conditions of LKPL's own lease for the space (clause 2.7).",
+      "is_out_of_corpus": false
+    },
+    {
+      "id": "Q042",
+      "question": "Which of the two affiliate agreements in this corpus (LinkPlus-Axiometric vs. NCM Network Affiliate) explicitly ties a party's payment obligation to a compounding interest formula, and which instead ties non-compliance to a consent requirement rather than a monetary penalty?",
+      "question_type": "comparison",
+      "expected_document": "LinkPlusCorp_20050802_8-K_EX-10_3240252_EX-10_Affiliate Agreement.pdf; DigitalCinemaDestinationsCorp_20111220_S-1_EX-10.10_7346719_EX-10.10_Affiliate Agreement.pdf",
+      "anchor_chunk_id": "d3d4d0b6fae30ae4bc84d85ec30b745433e43f00d2aaab1487839a56eea2069c:0035; bdb7d1532a642920cd915516243718bfbcf6c436248902c58b97c4cc005b317d:0024",
+      "expected_answer_span": "will bear interest at the rate of twelve percent (12.0%) per annum compounded monthly ||| Network Affiliate shall not be permitted to permanently discontinue Service to any Theatre without the prior written consent of NCM",
+      "expected_answer": "The LinkPlus-Axiometric agreement ties late payment to a compounding interest formula (12% per annum, compounded monthly). The NCM agreement instead ties early/unauthorized discontinuation of Service to a consent requirement (NCM's prior written consent) rather than a monetary interest penalty.",
+      "is_out_of_corpus": false,
+      "requires_multiple_documents": true
+    }
+  ]
+}
