@@ -87,6 +87,7 @@ class StructureDetector:
         current_section: str | None = None
         current_frontmatter_type: str | None = None
         current_structure: DetectedStructure | None = None
+        current_heading_is_clause: bool = False
         last_line_was_heading = False
 
         buffer_lines: list[str] = []
@@ -120,9 +121,10 @@ class StructureDetector:
             section: str | None,
             frontmatter_type: str | None = None,
             structure: DetectedStructure | None = None,
+            is_clause: bool = False,
         ) -> None:
             nonlocal current_heading, current_section, current_frontmatter_type, last_line_was_heading
-            nonlocal current_structure
+            nonlocal current_structure, current_heading_is_clause
             if last_line_was_heading and current_section is not None and section is None:
                 current_heading = f"{current_heading} {text}".strip()
             else:
@@ -130,6 +132,7 @@ class StructureDetector:
                 current_section = section
                 current_frontmatter_type = frontmatter_type
                 current_structure = structure
+                current_heading_is_clause = is_clause
             last_line_was_heading = True
 
         def begin_paragraph(page_number: int, line: str) -> None:
@@ -182,7 +185,12 @@ class StructureDetector:
                     else:
                         section_id = child_id
                         structure = detected
-                    start_heading(f"{section_id}. {detected.title}", section_id, structure=structure)
+                    start_heading(
+                        f"{section_id}. {detected.title}",
+                        section_id,
+                        structure=structure,
+                        is_clause=True,
+                    )
                     begin_paragraph(page.page_number, line)
                     continue
 
@@ -220,6 +228,14 @@ class StructureDetector:
                         continue
 
                     flush()
+                    is_top_level = bool(
+                        detected.identifier
+                        and "." not in detected.identifier
+                        and "(" not in detected.identifier
+                    )
+                    if is_top_level and current_heading_is_clause:
+                        current_heading = None
+                        current_heading_is_clause = False
                     current_section = detected.identifier
                     current_frontmatter_type = None
                     current_structure = detected

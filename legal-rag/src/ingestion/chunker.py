@@ -82,9 +82,20 @@ class LegalChunker:
 
     @staticmethod
     def _group_by_heading(paragraphs: list[DetectedParagraph]) -> list[list[DetectedParagraph]]:
+        """Group consecutive paragraphs that share the same structural context.
+
+        Both heading and section must match: many legal sections carry no
+        separate heading line (heading=None) but do have distinct section
+        identifiers, and grouping on heading alone would silently merge
+        unrelated sections together.
+        """
         groups: list[list[DetectedParagraph]] = []
         for para in paragraphs:
-            if groups and groups[-1][-1].heading == para.heading:
+            if (
+                groups
+                and groups[-1][-1].heading == para.heading
+                and groups[-1][-1].section == para.section
+            ):
                 groups[-1].append(para)
             else:
                 groups.append([para])

@@ -68,11 +68,12 @@ def test_basic_document_retains_section_context():
     chunks = LegalChunker().chunk(document_id="doc-1", pages=make_pages([text]))
 
     assert len(chunks) > 0
-    section_1_chunks = [c for c in chunks if c.heading == "Section 1"]
-    section_2_chunks = [c for c in chunks if c.heading == "Section 2"]
+    # "Section 1" / "Section 2" are plain body lines here, not separate
+    # heading lines, so the detector correctly leaves c.heading as None.
+    # Section context is carried on c.section instead.
+    section_1_chunks = [c for c in chunks if c.section == "1"]
+    section_2_chunks = [c for c in chunks if c.section == "2"]
     assert section_1_chunks and section_2_chunks
-    assert all(c.section == "1" for c in section_1_chunks)
-    assert all(c.section == "2" for c in section_2_chunks)
     assert any("Paragraph A" in c.text for c in section_1_chunks)
     assert any("Paragraph B" in c.text for c in section_1_chunks)
     assert any("Paragraph C" in c.text for c in section_2_chunks)
