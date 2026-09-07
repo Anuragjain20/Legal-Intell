@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
-from uuid import uuid4
 
 from src.ingestion.chunker import LegalChunker
 from src.ingestion.exceptions import UploadValidationError
 from src.ingestion.models import Chunk, DocumentMetadata
 from src.ingestion.pdf_extractor import PDFExtractionResult, PDFExtractor
-from src.ingestion.storage import DocumentStorage
+from src.ingestion.storage import DocumentRegistry, DocumentStorage, normalize_category
 from src.ingestion.validator import DocumentValidator
 
 
@@ -24,26 +24,34 @@ class DocumentUploadService:
     ) -> None:
         self.validator = DocumentValidator(max_file_size_bytes=max_file_size_bytes)
         self.storage = DocumentStorage(storage_dir)
+        self.registry = DocumentRegistry(storage_dir.parent / "documents.json")
         self.extractor = PDFExtractor()
         self.chunker = LegalChunker()
 
-    def upload(self, filename: str, content: bytes) -> tuple[DocumentMetadata, PDFExtractionResult, list[Chunk]]:
+    def upload(
+        self, filename: str, content: bytes, category: str | None = None, source_path: str | None = None
+    ) -> tuple[DocumentMetadata, PDFExtractionResult, list[Chunk]]:
         self.validator.validate(filename, content)
-        document_id = str(uuid4())
-        storage_path = self.storage.save(filename, content)
+        safe_filename = Path(filename).name
+        document_id = sha256(content).hexdigest()
+        normalized_category = normalize_category(category)
+        storage_path = self.storage.save(safe_filename, content, document_id, normalized_category)
         metadata = DocumentMetadata(
             document_id=document_id,
-            filename=filename,
+            filename=safe_filename,
             file_type="pdf",
             file_size=len(content),
             upload_timestamp=datetime.now(timezone.utc),
             storage_path=str(storage_path),
+            category=normalized_category,
+            source_path=source_path,
         )
         extraction = self.extractor.extract(
             document_id=document_id,
-            filename=filename,
+            filename=safe_filename,
             storage_path=str(storage_path),
             content=content,
         )
-        chunks = self.chunker.chunk(document_id=document_id, pages=extraction.pages)
+        chunks = self.chunker.chunk(document_id=document_id, pages=extraction.pages, category=normalized_category)
+        self.registry.upsert(metadata)
         return metadata, extraction, chunks

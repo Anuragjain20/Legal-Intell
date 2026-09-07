@@ -16,6 +16,7 @@ from dataclasses import dataclass
 
 from src.ingestion.models import Chunk, DocumentPage
 from src.ingestion.structure_detector import DetectedParagraph, StructureDetector
+from src.ingestion.section_parser import parse_section_structure
 
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
@@ -43,7 +44,7 @@ class LegalChunker:
         self.config = config or ChunkerConfig()
         self._structure_detector = StructureDetector()
 
-    def chunk(self, *, document_id: str, pages: list[DocumentPage]) -> list[Chunk]:
+    def chunk(self, *, document_id: str, pages: list[DocumentPage], category: str | None = None) -> list[Chunk]:
         paragraphs = self._structure_detector.detect(pages)
         groups = self._group_by_heading(paragraphs)
 
@@ -56,6 +57,10 @@ class LegalChunker:
             text = text.strip()
             if not any(ch.isalnum() for ch in text):
                 continue
+
+            # Parse hierarchical section structure
+            parsed = parse_section_structure(meta.section)
+
             chunks.append(
                 Chunk(
                     chunk_id=f"{document_id}:{len(chunks):04d}",
@@ -65,6 +70,12 @@ class LegalChunker:
                     section=meta.section,
                     heading=meta.heading,
                     text=text,
+                    document_name=pages[0].filename if pages else None,
+                    category=category,
+                    section_number=parsed.section_number,
+                    subsection=parsed.subsection,
+                    clause=parsed.clause,
+                    structure_path=parsed.structure_path if parsed.structure_path else None,
                 )
             )
         return chunks

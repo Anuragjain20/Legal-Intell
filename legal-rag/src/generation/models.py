@@ -17,6 +17,7 @@ class ContextSource:
     heading: str | None
     text: str
     score: float
+    document_name: str | None = None
 
 
 @dataclass(frozen=True)

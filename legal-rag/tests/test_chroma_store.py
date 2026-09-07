@@ -1,0 +1,36 @@
+from __future__ import annotations
+
+from src.vectorstore.base import VectorRecord
+from src.vectorstore.chroma_store import ChromaVectorStore
+
+
+def make_record() -> VectorRecord:
+    return VectorRecord(
+        chunk_id="chunk-1",
+        document_id="doc-1",
+        vector=[1.0, 0.0, 0.0],
+        text="Termination requires written notice.",
+        page_number=3,
+        section="7",
+        heading="TERMINATION",
+        embedding_model="test-model",
+        embedding_version="1",
+        document_name="contract.pdf",
+        category="contracts",
+    )
+
+
+def test_chroma_persists_and_searches_records(tmp_path):
+    store = ChromaVectorStore(storage_dir=tmp_path / "chroma", dimension=3, collection_name="test_records")
+    store.add([make_record()])
+
+    reloaded = ChromaVectorStore(storage_dir=tmp_path / "chroma", dimension=3, collection_name="test_records")
+    record = reloaded.get_by_chunk_id("chunk-1")
+    results = reloaded.search([1.0, 0.0, 0.0], top_k=1)
+
+    assert record is not None
+    assert record.document_name == "contract.pdf"
+    assert record.category == "contracts"
+    assert reloaded.list_document_ids() == ["doc-1"]
+    assert results[0].record.chunk_id == "chunk-1"
+    assert results[0].score == 1.0

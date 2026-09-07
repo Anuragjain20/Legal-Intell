@@ -1,6 +1,6 @@
 # Legal RAG
 
-This repository is the skeleton for a legal retrieval-augmented generation application.
+This repository is a small local retrieval-augmented generation application for legal PDFs.
 
 The goal of this phase is to establish clean boundaries before any RAG logic is added. The app currently ships as a basic Streamlit shell with separate packages reserved for ingestion, retrieval, generation, embeddings, vector store, and configuration concerns.
 
@@ -13,7 +13,8 @@ Right now, the project provides:
 - Dedicated folders for uploaded documents and processed artifacts
 - A lightweight foundation for tests and configuration
 
-It does not yet process documents, generate embeddings, query a vector store, or call an LLM.
+It extracts text from PDFs, chunks and embeds it locally, stores vectors in persistent Chroma,
+retrieves relevant passages, and uses DeepSeek for grounded answers with source citations.
 
 ## Installation
 
@@ -25,7 +26,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-If you want to configure environment variables, copy `.env.example` to `.env` and fill in the values later.
+Copy `.env.example` to `.env` and add your `DEEPSEEK_API_KEY` before asking questions.
 
 ## Run
 
@@ -40,34 +41,20 @@ streamlit run app.py
 The structure is intentionally simple:
 
 - `app.py` - Streamlit application entry point
-- `src/ingestion/` - future document ingestion and preprocessing
-- `src/retrieval/` - future search and ranking logic
-- `src/generation/` - future response generation orchestration
-- `src/embeddings/` - future embedding helpers
-- `src/vectorstore/` - future vector store integration
-- `src/config/` - future configuration and environment handling
+- `src/ingestion/` - PDF validation, extraction, and legal-aware chunking
+- `src/retrieval/` - embedding search and ranking
+- `src/generation/` - prompt construction, DeepSeek generation, and citations
+- `src/embeddings/` - local Hugging Face embedding provider
+- `src/vectorstore/` - Chroma persistence behind a small interface
+- `src/config/` - environment settings
 - `tests/` - automated tests
 - `data/documents/` - raw uploaded documents
 - `data/processed/` - processed artifacts such as chunks or indexes
 
 ## Current implementation status
 
-Implemented:
-
-- Project scaffold and package boundaries
-- Streamlit shell
-- Dependency list
-- Placeholder environment file
-
-Not implemented yet:
-
-- Document ingestion
-- Embeddings
-- Vector search
-- RAG orchestration
-- LangGraph
-- Authentication or RBAC
-- Database infrastructure
+The MVP deliberately does not include authentication, OCR for scanned PDFs, metadata filters,
+or agent workflows such as LangGraph.
 
 ## Embedding strategy
 
@@ -80,10 +67,8 @@ This keeps chunking, embedding, vector storage, and retrieval separate while sti
 
 ## Vector store strategy
 
-For the MVP, the project uses a lightweight local persistent store behind a `VectorStore` abstraction.
-
-- Local MVP store: a persistent on-disk index suitable for development and Streamlit restarts
-- Future server option: FAISS or another backend can replace the implementation without changing callers
+For the MVP, the project uses persistent local Chroma behind a `VectorStore` abstraction.
+The same interface can later support a hosted Chroma instance, pgvector, or another backend.
 
 Duplicate indexing is handled as an upsert by `chunk_id`, so reprocessing the same document updates existing records instead of silently creating duplicates.
 

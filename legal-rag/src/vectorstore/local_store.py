@@ -88,6 +88,8 @@ class LocalVectorStore:
                 f"Persisted index dimension {stored_dimension} does not match configured dimension {self.dimension}."
             )
         for item in raw.get("records", []):
+            item.setdefault("document_name", None)
+            item.setdefault("category", None)
             record = VectorRecord(**item)
             self._validate_record(record)
             self._records_by_chunk_id[record.chunk_id] = record
@@ -98,4 +100,3 @@ class LocalVectorStore:
             "records": [asdict(record) for record in self._records_by_chunk_id.values()],
         }
         self.index_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-

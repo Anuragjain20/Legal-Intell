@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.embeddings.providers import EmptyTextError
+from src.embeddings.providers import LocalHuggingFaceEmbeddingProvider
 from src.embeddings.service import EmbeddingService
 from src.ingestion.models import Chunk
 
@@ -95,3 +96,17 @@ def test_embedding_is_repeatable_for_same_text():
 
     assert first == second
 
+
+def test_bge_query_uses_the_retrieval_instruction_without_loading_a_model():
+    provider = object.__new__(LocalHuggingFaceEmbeddingProvider)
+    object.__setattr__(provider, "query_instruction", "search: ")
+    captured: list[str] = []
+
+    def fake_embed_documents(texts: list[str]) -> list[list[float]]:
+        captured.extend(texts)
+        return [[0.1, 0.2]]
+
+    object.__setattr__(provider, "embed_documents", fake_embed_documents)
+
+    assert provider.embed_query("purpose of the Act") == [0.1, 0.2]
+    assert captured == ["search: purpose of the Act"]

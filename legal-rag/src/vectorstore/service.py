@@ -29,6 +29,8 @@ class VectorIndexService:
                 heading=item.chunk.heading,
                 embedding_model=item.embedding_model,
                 embedding_version=item.embedding_version,
+                document_name=item.chunk.document_name,
+                category=item.chunk.category,
             )
             for item in embedded_chunks
         ]
@@ -36,5 +38,3 @@ class VectorIndexService:
 
     def delete_document(self, document_id: str) -> int:
         return self.store.delete_document(document_id)
-
-

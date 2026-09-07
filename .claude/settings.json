@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell([System.Environment]::SetEnvironmentVariable\\(\"PYTHONIOENCODING\", \"utf-8\"\\); cd \"c:\\\\Users\\\\anura\\\\Desktop\\\\legal-rag-intelligence\\\\legal-rag\"; python build_valid_evaluation_dataset.py 2>&1 | Select-Object -First 150)",
+      "Bash(python -m pytest -q)",
+      "Bash(python -c ' *)",
+      "Bash(python -m pytest tests/test_generation.py::test_prompt_contains_grounding_instructions_and_sources -q)",
+      "Bash(python -m pytest tests/test_chunker.py::test_basic_document_retains_section_context -q)",
+      "Bash(python -m pytest tests/test_structure_detector.py::test_legal_definition_clauses_are_detected -q)",
+      "Bash(python -m pytest legal-rag/tests/test_retrieval.py -v)",
+      "Bash(python -c \"from src.retrieval.models import RetrievalRequest; print\\('Import successful'\\)\")",
+      "Bash(python -m pytest legal-rag/tests/ -v --tb=short)",
+      "Bash(python -m pytest legal-rag/tests/test_generation.py -v)",
+      "Bash(python -m pytest legal-rag/tests/test_chunker.py::test_basic_document_retains_section_context legal-rag/tests/test_structure_detector.py::test_legal_definition_clauses_are_detected legal-rag/tests/test_structure_detector.py::test_numbered_section_short_title_is_detected -v)",
+      "Bash(python -m pytest legal-rag/tests/test_retrieval.py legal-rag/tests/test_evaluator.py -v)",
+      "Bash(python -m pytest legal-rag/tests/test_retrieval_contract.py -v)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(python build_valid_evaluation_dataset.py)",
+      "Read(//tmp/**)",
+      "Bash(grep -i \"\\\\.env$\")",
+      "Bash(echo \"exit:$?\")",
+      "Bash(git status *)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(echo \"EXIT_CODE:$?\")",
+      "Bash(tail -100 /tmp/pytest_out.txt)",
+      "Bash(PYTHONIOENCODING=utf-8 python run_evaluation.py)",
+      "Bash(xargs -I{} sh -c 'echo \"{}: $\\(python -c \"import json; d=json.load\\(open\\(\\\\\"{}\\\\\", encoding=\\\\\"utf-8\\\\\"\\)\\); print\\(len\\(d\\) if isinstance\\(d,list\\) else \\(len\\(d.get\\(\\\\\"questions\\\\\",[]\\)\\) if isinstance\\(d,dict\\) else \\\\\"?\\\\\"\\)\\)\" 2>/dev/null\\)\"')"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\anura\\.claude"
+    ]
+  }
+}

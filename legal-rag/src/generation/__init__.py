@@ -4,3 +4,4 @@ from src.generation.exceptions import EmptyQuestionError, GenerationError, Insuf
 from src.generation.llm_service import GenerationService, LLMService
 from src.generation.models import ContextSource, GenerationContext, GenerationResult
 from src.generation.prompt import PromptBuilder
+from src.generation.providers import DeepSeekLLMClient

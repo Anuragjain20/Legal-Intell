@@ -4,3 +4,5 @@ pytest
 pypdf
 sentence-transformers
 langchain-core
+langchain-openai
+chromadb

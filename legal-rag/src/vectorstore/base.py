@@ -19,6 +19,8 @@ class VectorRecord:
     heading: str | None
     embedding_model: str
     embedding_version: str
+    document_name: str | None = None
+    category: str | None = None
 
 
 @dataclass(frozen=True)

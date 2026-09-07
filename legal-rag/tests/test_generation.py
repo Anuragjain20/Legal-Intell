@@ -15,6 +15,7 @@ def make_result(rank: int, score: float, chunk_id: str, page_number: int, text: 
     return RetrievalResult(
         rank=rank,
         score=score,
+        retrieval_method="dense_with_reranking",
         record=VectorRecord(
             chunk_id=chunk_id,
             document_id="doc-1",
@@ -59,7 +60,7 @@ def test_context_builder_includes_source_boundaries():
         [make_result(1, 0.95, "chunk-1", 12, "Termination requires written notice.")],
     )
 
-    assert "SOURCE 1" in context.rendered_context
+    assert "[SOURCE_1]" in context.rendered_context
     assert "Document: doc-1" in context.rendered_context
     assert "Chunk: chunk-1" in context.rendered_context
     assert "Page: 12" in context.rendered_context
@@ -90,6 +91,7 @@ def test_prompt_contains_grounding_instructions_and_sources():
     assert "USER QUESTION:" in prompt
     assert "SOURCES:" in prompt
     assert "Answer using ONLY the provided sources." in prompt
+    assert "preamble, recitals, and long title" in prompt
     assert "If the sources do not contain sufficient information" in prompt
     assert "What are the termination conditions?" in prompt
 

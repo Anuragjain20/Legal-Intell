@@ -38,7 +38,8 @@ class GenerationService:
     prompt_builder: object
     citation_mapper: CitationMapper
     insufficient_evidence_response: str = (
-        "I could not find sufficient information in the provided documents to answer this question."
+        "I could not find sufficient information in the provided documents to answer this question. "
+        "Please try a different question or upload documents related to your query."
     )
 
     def answer(self, question: str, retrieved_results: list) -> GenerationResult:
@@ -61,7 +62,10 @@ class GenerationService:
             raise InsufficientEvidenceError("LLM returned an empty answer.")
 
         citation_mapping = self.citation_mapper.map(answer, context)
-        if citation_mapping.unresolved_source_ids:
+
+        if citation_mapping.unresolved_source_ids and citation_mapping.citations:
+            pass
+        elif citation_mapping.unresolved_source_ids:
             raise GenerationFailure(
                 f"LLM referenced unknown sources: {', '.join(citation_mapping.unresolved_source_ids)}"
             )

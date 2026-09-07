@@ -12,8 +12,8 @@ from src.retrieval.models import RetrievalResult
 class ContextBuilder:
     """Convert ranked retrieval results into source-separated context blocks."""
 
-    max_sources: int = 5
-    max_context_chars: int = 6000
+    max_sources: int = 6
+    max_context_chars: int = 8000
 
     def build(self, question: str, results: list[RetrievalResult]) -> GenerationContext:
         selected = results[: self.max_sources]
@@ -21,9 +21,9 @@ class ContextBuilder:
         rendered_blocks: list[str] = []
         remaining = self.max_context_chars
 
-        for result in selected:
+        for idx, result in enumerate(selected, start=1):
             source = ContextSource(
-                rank=result.rank,
+                rank=idx,
                 document_id=result.record.document_id,
                 chunk_id=result.record.chunk_id,
                 page_number=result.record.page_number,
@@ -31,6 +31,7 @@ class ContextBuilder:
                 heading=result.record.heading,
                 text=result.record.text,
                 score=result.score,
+                document_name=result.record.document_name,
             )
             block = self._render_source(source)
             if len(block) > remaining:
@@ -46,18 +47,20 @@ class ContextBuilder:
         return GenerationContext(question=question, sources=sources, rendered_context=rendered_context)
 
     def _render_source(self, source: ContextSource) -> str:
-        section_line = f"Section: {source.section}" if source.section else "Section: N/A"
-        heading_line = f"Heading: {source.heading}" if source.heading else "Heading: N/A"
-        return (
-            f"SOURCE {source.rank}\n"
-            f"Document: {source.document_id}\n"
-            f"Chunk: {source.chunk_id}\n"
-            f"Page: {source.page_number}\n"
-            f"{section_line}\n"
-            f"{heading_line}\n"
-            f"Score: {source.score:.4f}\n\n"
-            f"{source.text}"
-        )
+        parts = [f"[SOURCE_{source.rank}]"]
+        parts.append(f"Document: {source.document_name or source.document_id}")
+        parts.append(f"Chunk: {source.chunk_id}")
+
+        if source.heading:
+            parts.append(f"Section/Heading: {source.heading}")
+        if source.section:
+            parts.append(f"Category: {source.section}")
+
+        parts.append(f"Page: {source.page_number}")
+        parts.append("")
+        parts.append(source.text)
+
+        return "\n".join(parts)
 
     def _truncate_block(self, block: str, limit: int) -> str:
         if limit <= 0:

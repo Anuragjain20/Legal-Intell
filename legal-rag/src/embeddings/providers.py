@@ -26,6 +26,7 @@ class LocalHuggingFaceEmbeddingProvider:
 
     model_name: str = "BAAI/bge-small-en-v1.5"
     model_version: str = "1"
+    query_instruction: str = "Represent this sentence for searching relevant passages: "
 
     def __post_init__(self) -> None:
         try:
@@ -45,7 +46,9 @@ class LocalHuggingFaceEmbeddingProvider:
         return [vector.tolist() for vector in vectors]
 
     def embed_query(self, text: str) -> list[float]:
-        return self.embed_documents([text])[0]
+        # BGE retrieval models distinguish a search query from a document passage.
+        # The instruction improves ranking without requiring the index to be rebuilt.
+        return self.embed_documents([f"{self.query_instruction}{_ensure_non_blank(text)}"])[0]
 
     @property
     def embedding_dimension(self) -> int:
@@ -112,4 +115,3 @@ def build_langchain_provider(backend_name: str, **kwargs: Any) -> LangChainEmbed
         return LangChainEmbeddingProvider(backend=model, model_name=getattr(model, "model", backend_name))
 
     raise ValueError(f"Unsupported LangChain backend: {backend_name}")
-

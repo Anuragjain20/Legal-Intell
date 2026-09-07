@@ -58,7 +58,7 @@ class CitationMapper:
                     citation_id=source.rank,
                     source_id=source_id,
                     document_id=source.document_id,
-                    document_name=source.document_id,
+                    document_name=getattr(source, "document_name", None) or source.document_id,
                     page_number=source.page_number,
                     chunk_id=source.chunk_id,
                     section=source.section,
@@ -75,4 +75,3 @@ class CitationMapper:
 
     def _extract_source_ids(self, answer: str) -> list[str]:
         return [f"SOURCE_{match}" for match in SOURCE_REF_PATTERN.findall(answer)]
-

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from io import BytesIO
+import json
+from pathlib import Path
 
 import pytest
 from pypdf import PdfWriter
@@ -57,7 +59,9 @@ def test_valid_pdf_is_accepted(tmp_path):
     assert metadata.filename == "contract.pdf"
     assert metadata.file_type == "pdf"
     assert metadata.file_size > 0
-    assert (tmp_path / "documents" / "contract.pdf").exists()
+    stored_path = tmp_path / "documents" / "uncategorized" / Path(metadata.storage_path).name
+    assert stored_path.exists()
+    assert stored_path.name.endswith("-contract.pdf")
     assert extraction.document_id == metadata.document_id
     # The blank test page has no text, so chunking legitimately produces nothing.
     assert chunks == []
@@ -105,10 +109,42 @@ def test_upload_produces_chunks_for_text_bearing_pdf(tmp_path):
     assert all(c.document_id == metadata.document_id for c in chunks)
 
 
-def test_two_uploads_get_separate_ids(tmp_path):
+def test_reuploading_identical_content_reuses_the_document_id(tmp_path):
     service = build_service(tmp_path)
 
     first, _, _ = service.upload("first.pdf", build_pdf_bytes())
     second, _, _ = service.upload("second.pdf", build_pdf_bytes())
 
-    assert first.document_id != second.document_id
+    assert first.document_id == second.document_id
+
+
+def test_upload_preserves_category_on_chunks(tmp_path):
+    service = build_service(tmp_path)
+
+    metadata, _, chunks = service.upload(
+        "notice.pdf", build_pdf_with_text("Termination requires notice."), category="contracts"
+    )
+
+    assert metadata.category == "contracts"
+    assert chunks[0].category == "contracts"
+    assert Path(metadata.storage_path).parent.name == "contracts"
+
+
+def test_upload_records_document_metadata_in_json_catalog(tmp_path):
+    service = build_service(tmp_path)
+
+    metadata, _, _ = service.upload("contract.pdf", build_pdf_bytes(), category="master agreements")
+
+    catalog = json.loads((tmp_path / "documents.json").read_text(encoding="utf-8"))
+    assert catalog["documents"][0]["document_id"] == metadata.document_id
+    assert catalog["documents"][0]["category"] == "master agreements"
+
+
+def test_upload_storage_uses_only_the_filename_component(tmp_path):
+    service = build_service(tmp_path)
+
+    metadata, _, _ = service.upload("../contract.pdf", build_pdf_bytes())
+
+    stored_path = Path(metadata.storage_path)
+    assert stored_path.parent == tmp_path / "documents" / "uncategorized"
+    assert stored_path.name.endswith("-contract.pdf")
