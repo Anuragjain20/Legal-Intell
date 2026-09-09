@@ -13,5 +13,6 @@ build/
 *.pyo
 env/
 /doc/
+.claude/
 
 
