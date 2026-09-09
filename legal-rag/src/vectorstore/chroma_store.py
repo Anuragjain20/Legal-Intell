@@ -61,6 +61,31 @@ class ChromaVectorStore:
         result = self._collection.get(include=["metadatas"])
         return sorted({metadata["document_id"] for metadata in result.get("metadatas", [])})
 
+    def get_all(self) -> list[VectorRecord]:
+        """Return every indexed chunk, without embeddings.
+
+        For consumers (BM25 indexing, bulk export) that only need text and
+        metadata - fetching 2800+ embedding vectors just to discard them
+        would be pure waste.
+        """
+        result = self._collection.get(include=["documents", "metadatas"])
+        return [
+            VectorRecord(
+                chunk_id=result["ids"][i],
+                document_id=metadata["document_id"],
+                vector=[],
+                text=result["documents"][i],
+                page_number=int(metadata["page_number"]),
+                section=metadata["section"] or None,
+                heading=metadata["heading"] or None,
+                embedding_model=metadata["embedding_model"],
+                embedding_version=metadata["embedding_version"],
+                document_name=metadata["document_name"] or None,
+                category=metadata.get("category") or None,
+            )
+            for i, metadata in enumerate(result.get("metadatas", []))
+        ]
+
     def search(self, vector: list[float], top_k: int = 5) -> list[SearchResult]:
         self._validate_vector(vector)
         if top_k <= 0 or self._collection.count() == 0:

@@ -23,7 +23,6 @@ from pathlib import Path
 from src.evaluation.matching import DOCUMENT_SEPARATOR, span_matches, split_multi_span
 from src.evaluation.metrics import calculate_mrr, calculate_precision_at_k, calculate_recall_at_k
 from src.retrieval.exceptions import NoRelevantResultsError
-from src.retrieval.retriever import Retriever
 
 K_VALUES = (1, 3, 5)
 
@@ -54,7 +53,7 @@ class EvaluationSummary:
     unanswerable_cases: int
     overall: dict[str, float]
     by_question_type: dict[str, dict[str, float]]
-    unanswerable_confidence_gate_rate: float
+    unanswerable_confidence_gate_rate: float | None
     case_results: list[CaseResult]
 
 
@@ -86,7 +85,11 @@ def _find_relevant_chunk_ids(
     return relevant
 
 
-def evaluate_case(retriever: Retriever, case: dict, top_k: int = 5) -> CaseResult:
+def evaluate_case(retriever, case: dict, top_k: int = 5) -> CaseResult:
+    """Evaluate one dataset question. `retriever` needs only a
+    `retrieve(question, top_k) -> list[chunk with .record]` method that
+    raises NoRelevantResultsError on no candidates - Retriever itself, or
+    any of the adapters in retriever_adapters.py."""
     result = CaseResult(
         case_id=case["id"],
         question_type=case["question_type"],
@@ -130,11 +133,25 @@ def evaluate_case(retriever: Retriever, case: dict, top_k: int = 5) -> CaseResul
 
 
 def run_evaluation(
-    retriever: Retriever,
+    retriever,
     dataset: dict,
-    similarity_threshold: float,
+    similarity_threshold: float | None,
     top_k: int = 5,
 ) -> EvaluationSummary:
+    """Run every dataset question through `retriever` and score the results.
+
+    `retriever` only needs a `retrieve(question, top_k) -> list` method that
+    raises NoRelevantResultsError on no candidates - see
+    src/evaluation/retriever_adapters.py for BM25/hybrid/reranked wrappers
+    around Retriever's shape.
+
+    `similarity_threshold` gates the "did the confidence gate correctly
+    withhold an answer" metric on the unanswerable cases. Pass None when the
+    retrieval method's score scale isn't a cosine similarity comparable to
+    this threshold (BM25's unbounded scores, hybrid's ~0.03-scale RRF
+    scores) - the gate rate is then reported as None rather than computed
+    against a threshold that doesn't apply to that scale.
+    """
     all_results = [evaluate_case(retriever, case, top_k=top_k) for case in dataset["questions"]]
 
     in_corpus = [r for r in all_results if not r.is_out_of_corpus]
@@ -146,15 +163,19 @@ def run_evaluation(
     for q_type in types:
         by_type[q_type] = _aggregate([r for r in in_corpus if r.question_type == q_type])
 
-    # A refusal (NoRelevantResultsError) or a top score already below the
-    # configured threshold both count as the confidence gate correctly
-    # withholding an answer for a question that has no real evidence.
-    gated = sum(
-        1
-        for r in unanswerable
-        if r.refused or (r.top_score is not None and r.top_score < similarity_threshold)
-    )
-    gate_rate = gated / len(unanswerable) if unanswerable else 0.0
+    gate_rate: float | None
+    if similarity_threshold is None:
+        gate_rate = None
+    else:
+        # A refusal (NoRelevantResultsError) or a top score already below the
+        # configured threshold both count as the confidence gate correctly
+        # withholding an answer for a question that has no real evidence.
+        gated = sum(
+            1
+            for r in unanswerable
+            if r.refused or (r.top_score is not None and r.top_score < similarity_threshold)
+        )
+        gate_rate = gated / len(unanswerable) if unanswerable else 0.0
 
     return EvaluationSummary(
         total_cases=len(all_results),
