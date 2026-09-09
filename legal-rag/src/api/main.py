@@ -121,7 +121,7 @@ def _build_generation_trace(result) -> dict[str, Any]:
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     services = app.state.services
-    indexed_chunks = services.retriever.vector_store._collection.count()
+    indexed_chunks = services.vector_store._collection.count()
     return HealthResponse(
         status="ok",
         indexed_chunks=indexed_chunks,
@@ -149,6 +149,11 @@ async def ingest(file: UploadFile = File(...), category: str = Form("general")) 
 
     embedded = services.embedding_service.embed_chunks(chunks)
     services.index_service.index_embeddings(embedded)
+
+    # BM25's inverted index has no incremental update path - rebuild it from
+    # Chroma so the new chunks are lexically searchable too, not just via
+    # the dense half of hybrid retrieval.
+    services.rebuild_bm25_index()
 
     return IngestResponse(filename=metadata.filename, category=category, chunks_indexed=len(chunks))
 
