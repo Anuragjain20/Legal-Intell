@@ -14,7 +14,7 @@ This is the most bespoke, most defensible-in-an-interview part of the codebase. 
 
 `PDFExtractor.extract()` ([pdf_extractor.py:25-57](../src/ingestion/pdf_extractor.py#L25-L57)) walks pages with `pypdf`, calling `page.extract_text()` per page and tagging each `DocumentPage` with `extraction_status` = `"extracted"` or `"no_text"`. Page numbers are preserved 1-indexed — this is what lets a citation later say "page 12," and it's why extraction is page-by-page rather than one big `reader.extract_text()` call over the whole document.
 
-No OCR fallback: a scanned/image-only PDF yields pages with `extraction_status="no_text"`, chunking produces zero chunks, and `app.py` raises `ValueError(f"{filename} has no extractable text. Scanned PDFs need OCR support.")` ([app.py:84-85](../app.py#L84-L85)).
+No OCR fallback: a scanned/image-only PDF yields pages with `extraction_status="no_text"`, chunking produces zero chunks, and `POST /ingest` returns a 400 with `"{filename} has no extractable text. Scanned PDFs need OCR support."` (`src/api/main.py`).
 
 ## Stage 3 — Structure detection
 

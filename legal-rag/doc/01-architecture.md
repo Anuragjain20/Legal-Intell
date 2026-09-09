@@ -1,8 +1,10 @@
 # Architecture
 
-## Two paths, one wiring point
+## Two processes, one wiring point
 
-Everything wires together in `build_services()` in [app.py:35-63](../app.py#L35-L63), a `@st.cache_resource`-decorated function that runs once per Streamlit process. This is the composition root — the only place that knows every concrete class. Every `src/` package exposes only interfaces (Python `Protocol`s or plain dataclasses) to its neighbors.
+FastAPI (`src/api/main.py`) is the real backend — it owns the embedding model, vector store, and LLM client as process-lifetime singletons, built once in a `lifespan` handler. Streamlit (`app.py`) is a thin HTTP client with zero `src/` imports: it calls `/health`, `/ingest`, and `/query` over HTTP and renders the JSON it gets back. This split exists because `ChromaVectorStore` opens a SQLite-backed `PersistentClient` on `data/chroma/`, which is not safe for two processes to write to concurrently — so exactly one process may hold the pipeline at a time, and that process is the API.
+
+Everything wires together in `build_services()` in [src/services.py](../src/services.py) — the composition root, the only place that knows every concrete class. Every other `src/` package exposes only interfaces (Python `Protocol`s or plain dataclasses) to its neighbors. Both `src/api/main.py` and the CLI scripts (`scripts/ingest.py`, `scripts/run_evaluation.py`) call this same function rather than constructing services themselves.
 
 ```
 Settings.from_env()
@@ -26,7 +28,7 @@ PDF bytes
   → VectorIndexService.index_embeddings()  (upsert into Chroma)     src/vectorstore/service.py
 ```
 
-Driven by `DocumentUploadService.upload()` ([service.py:31-57](../src/ingestion/service.py#L31-L57)), called from `app.py`'s `index_document()` ([app.py:76-87](../app.py#L76-L87)) for both single-file upload and folder-batch indexing.
+Driven by `DocumentUploadService.upload()` ([service.py:31-57](../src/ingestion/service.py#L31-L57)), called from the API's `POST /ingest` handler ([src/api/main.py](../src/api/main.py)) for single-file upload via the UI, or from `scripts/ingest.py` for bulk corpus ingestion (drops and rebuilds the Chroma collection first).
 
 ### Path 2 — Query (request-time)
 
@@ -38,7 +40,7 @@ question: str
       ContextBuilder.build()  → PromptBuilder.build() → LLMService.generate() (DeepSeek) → CitationMapper.map()
 ```
 
-Driven by `answer_question()` in [app.py:389-464](../app.py#L389-L464), which also builds a `trace_data` dict for the UI's debug panels — a nice side effect: the trace structure documents each stage's expected shape better than any docstring does.
+Driven by the API's `POST /query` handler, which also builds a `trace` dict describing each pipeline stage and returns it in the response body — the trace structure documents each stage's expected shape better than any docstring does. Streamlit stores that trace as-is and renders it; it never recomputes anything the API already decided. A refusal (`NoRelevantResultsError`, no candidate cleared the similarity threshold) is a **200 response with `refused: true`**, not an error status — it's a correct product outcome, and the whole evaluation story in [06-evaluation.md](06-evaluation.md) is about how often that gate actually fires.
 
 ## Module boundaries and why they exist
 
@@ -79,6 +81,6 @@ Grep-verified absences, useful to state proactively rather than get caught by:
 - **Hybrid search / BM25** — pure dense vector search, no keyword/sparse component.
 - **Query rewriting / HyDE / multi-query** — the query string goes straight to `embed_query`.
 - **Cross-encoder reranking** — re-ranking is a hand-rolled tuple sort (frontmatter priority, similarity, term overlap, specificity), not a learned reranker. See [04-retrieval.md](04-retrieval.md).
-- **OCR** — scanned PDFs produce empty-text pages; `DocumentUploadService` raises rather than falling back to OCR ([app.py:84-85](../app.py#L84-L85)).
-- **Auth / multi-tenancy** — single local Streamlit process, no user separation.
-- **Horizontal scaling** — `@st.cache_resource` holds one embedding model and one Chroma client in-process per Streamlit worker; there's no shared service layer.
+- **OCR** — scanned PDFs produce empty-text pages; `DocumentUploadService` raises rather than falling back to OCR.
+- **Auth / multi-tenancy** — the API has no auth layer and Chroma's SQLite backend means exactly one API process may run at a time; there's no user separation.
+- **Horizontal scaling of the API itself** — the FastAPI backend is a single process holding one embedding model and one Chroma client. It can now be scaled independently of the UI (that was the point of the split), but scaling *it* past one process would need Chroma moved to a client-server deployment or swapped for a hosted vector DB behind the same `VectorStore` protocol, plus a queue in front of the DeepSeek call for backpressure — neither exists yet.

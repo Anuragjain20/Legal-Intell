@@ -10,12 +10,12 @@ question string
   → raise NotImplementedError if filters passed              retriever.py:24-25  (metadata filters: not built)
   → embed_query(question)         → 384-dim vector           retriever.py:27
   → vector_store.search(vector, top_k)                       retriever.py:28
-       app.py calls this with top_k=8                        app.py:403
+       the /query API handler calls this with top_k=8        src/api/main.py
   → keep only results with score >= similarity_threshold     retriever.py:30-34
        default threshold = 0.35 (SIMILARITY_THRESHOLD env)   settings.py:18
   → raise NoRelevantResultsError if nothing survives          retriever.py:35-36
   → _rank_by_relevance() re-ranks the survivors               retriever.py:37, 39-64
-  → returned to caller (app.py) as list[RetrievalResult]
+  → returned to the /query handler as list[RetrievalResult]
        ContextBuilder then takes only the first 6             context_builder.py:15, 19
 ```
 
@@ -23,7 +23,7 @@ question string
 
 1. **`top_k=8` is not "the number of chunks the LLM sees."** It's the candidate pool *before* threshold filtering and re-ranking. The threshold filter can reduce it below 8 (in the limit, to zero, which raises rather than returning an empty list — callers must handle `NoRelevantResultsError` explicitly, not just check `if results:`). Then `ContextBuilder` caps the *context* at 6 sources regardless of how many `Retriever` returned. So the real numbers are: search 8 → filter to ≤8 → re-rank → context-build takes ≤6.
 2. **The threshold is compared against similarity, not distance** (see [03-embeddings-vectorstore.md](03-embeddings-vectorstore.md)) — `score >= self.similarity_threshold` ([retriever.py:33](../src/retrieval/retriever.py#L33)) keeps the *most* similar results, which is correct only because `score` is already `1 - distance`.
-3. **Zero results is an exception, not an empty list.** `NoRelevantResultsError` ([retriever.py:36](../src/retrieval/retriever.py#L36)) forces every caller to have an explicit "nothing relevant found" path. `app.py` catches this alongside `RetrievalError`/`GenerationError`/`ValueError` in `answer_question()` ([app.py:455-460](../app.py#L455-L460)) and surfaces the exception message directly as the answer text. This is a deliberate choice: a RAG system that silently returns "I don't know" from an empty context list is harder to debug than one that raises loudly at the retrieval boundary.
+3. **Zero results is an exception, not an empty list.** `NoRelevantResultsError` ([retriever.py:36](../src/retrieval/retriever.py#L36)) forces every caller to have an explicit "nothing relevant found" path. The `/query` handler catches it and returns **HTTP 200 with `refused: true`** rather than an error status — a refusal is a correct product outcome, not a failure, and it's exactly what [06-evaluation.md](06-evaluation.md)'s confidence-gate metric measures the rate of. `RetrievalError` subclasses other than this one map to a 400; `GenerationError` maps to a 502.
 
 ## The re-ranker: what it actually is
 

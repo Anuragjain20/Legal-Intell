@@ -17,6 +17,10 @@ A local retrieval-augmented generation system over legal PDFs — statutes, cont
 
 No OCR for scanned PDFs, no auth, no metadata filtering at the retrieval layer, no generation/faithfulness evaluation. BM25, query analysis, and reranking modules exist in `src/` but are not wired into the live retrieval path — see `doc/01-architecture.md`.
 
+## Architecture
+
+FastAPI (`src/api/main.py`) is the real backend — it owns the embedding model, vector store, and LLM client, built once at startup. Streamlit (`app.py`) is a thin HTTP client with no direct pipeline imports; it calls the API over HTTP. Run exactly one API process at a time: Chroma's SQLite-backed store isn't safe for concurrent writers.
+
 ## Installation
 
 ```bash
@@ -29,7 +33,10 @@ Copy `.env.example` to `.env` and add your `DEEPSEEK_API_KEY`.
 
 ## Run
 
+Start the API, then the UI, in two terminals:
+
 ```bash
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 streamlit run app.py
 ```
 
@@ -50,8 +57,10 @@ Writes a manifest and full results to `data/eval_runs/<timestamp>/results.json`.
 ## Layout
 
 ```
-app.py                 Streamlit UI + service wiring
+app.py                 Streamlit UI - thin HTTP client, no src/ imports
 src/
+  api/main.py          FastAPI backend: /health, /ingest, /query
+  services.py          Composition root - build_services() wires everything
   config/              Environment-driven settings
   ingestion/           PDF -> pages -> structure detection -> chunks
   embeddings/          Chunk/query text -> vectors

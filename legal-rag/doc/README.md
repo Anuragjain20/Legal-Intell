@@ -9,7 +9,7 @@ This folder documents the actual, as-implemented system in `legal-rag/`, for two
 
 ## 60-second pitch
 
-A local, single-process Streamlit app that turns legal PDFs (statutes, contracts, judgments) into a retrieval-augmented Q&A system:
+A local FastAPI backend, with a thin Streamlit UI over it, that turns legal PDFs (statutes, contracts, judgments) into a retrieval-augmented Q&A system:
 
 `PDF → text extraction → legal-structure-aware chunking → local embeddings → Chroma vector store → cosine-similarity retrieval + hand-rolled re-rank → context assembly → DeepSeek LLM → citation verification against retrieved metadata`
 
@@ -42,7 +42,9 @@ python scripts/ingest.py --source <path to source PDFs>
 python scripts/run_evaluation.py
 cat data/eval_runs/<latest timestamp>/results.json
 
-# Start the app (needs DEEPSEEK_API_KEY in .env for the generation step)
+# Start the app: API first (owns the pipeline), then the UI (needs
+# DEEPSEEK_API_KEY in .env on the API side for the generation step)
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 streamlit run app.py
 ```
 
@@ -50,8 +52,10 @@ streamlit run app.py
 
 ```
 legal-rag/
-  app.py                     Streamlit UI + service wiring (composition root)
+  app.py                     Streamlit UI - thin HTTP client, zero src/ imports
   src/
+    api/main.py               FastAPI backend: /health, /ingest, /query
+    services.py                Composition root - build_services() wires everything
     config/settings.py       Env-driven Settings dataclass
     ingestion/                PDF → pages → structure → chunks
     embeddings/                Chunk/query text → vectors
