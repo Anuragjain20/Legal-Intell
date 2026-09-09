@@ -35,7 +35,7 @@ class TestQueryAnalyzerBasics:
     def test_analyzer_sets_query_length(self):
         analyzer = QueryAnalyzer()
         result = analyzer.analyze("What are the termination conditions?")
-        assert result.query_length == 6  # 6 words
+        assert result.query_length == 5  # 5 whitespace-separated words
 
 
 class TestQueryIntentDetection:

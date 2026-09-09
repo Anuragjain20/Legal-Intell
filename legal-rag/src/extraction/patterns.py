@@ -64,9 +64,26 @@ class ObligationPatterns:
         flags=re.IGNORECASE | re.DOTALL
     )
 
+    OBLIGATION_LIABLE = Pattern(
+        name="obligation_liable",
+        pattern=r"([A-Z][A-Za-z\s]+?)\s+(?:is\s+|shall\s+be\s+)?liable\s+for\s+(.+?)(?=(?:unless|if|provided|;|or|\.|\n|$))",
+        groups={"actor": 1, "action": 2},
+        severity="MUST",
+        flags=re.IGNORECASE | re.DOTALL
+    )
+
     OBLIGATION_REQUIRED = Pattern(
         name="obligation_required",
         pattern=r"([A-Z][A-Za-z\s]+?)\s+(?:is\s+)?required\s+to\s+(.+?)(?=(?:unless|if|provided|;|or|\.|\n|$))",
+        groups={"actor": 1, "action": 2},
+        severity="MUST",
+        flags=re.IGNORECASE | re.DOTALL
+    )
+
+    # Passive "X required within Y" - no "to VERB" clause, common for deadlines.
+    OBLIGATION_REQUIRED_WITHIN = Pattern(
+        name="obligation_required_within",
+        pattern=r"([A-Z][A-Za-z\s]+?)\s+(?:is\s+)?required\s+(within\s+.+?)(?=(?:unless|if|provided|;|or|\.|\n|$))",
         groups={"actor": 1, "action": 2},
         severity="MUST",
         flags=re.IGNORECASE | re.DOTALL
@@ -91,7 +108,9 @@ class ObligationPatterns:
             cls.OBLIGATION_AGREES,
             cls.OBLIGATION_RESPONSIBLE,
             cls.OBLIGATION_REQUIRED,
+            cls.OBLIGATION_REQUIRED_WITHIN,
             cls.OBLIGATION_SHOULD,
+            cls.OBLIGATION_LIABLE,
         ]
 
 

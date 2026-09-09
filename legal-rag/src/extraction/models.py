@@ -218,7 +218,7 @@ class ExtractionResult:
     @property
     def risk_summary(self) -> dict:
         """Count risks by level."""
-        summary = {level.value: 0 for level in RiskLevel}
+        summary = {level.name: 0 for level in RiskLevel}
         for risk in self.risks:
             summary[risk.risk_level] += 1
         return summary

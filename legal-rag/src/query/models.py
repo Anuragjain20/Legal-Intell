@@ -39,7 +39,7 @@ class QuerySignal:
     category: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class NormalizedQuery:
     """Query representation after analysis and normalization.
 

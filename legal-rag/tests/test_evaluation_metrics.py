@@ -414,10 +414,12 @@ class TestMetricsEdgeCases:
         recall_10 = calculate_recall_at_k(relevant, retrieved, k=10)
         recall_20 = calculate_recall_at_k(relevant, retrieved, k=20)
 
-        # All top-k results are relevant
-        assert recall_5 == 1.0
-        assert recall_10 == 1.0
-        assert recall_20 == 1.0
+        # Every retrieved item is relevant, but only a fraction of the 100
+        # relevant items are ever retrieved, so recall stays low - this is
+        # Recall@K (share of *all* relevant items found), not Precision@K.
+        assert recall_5 == 5 / 100
+        assert recall_10 == 10 / 100
+        assert recall_20 == 20 / 100
 
     def test_large_k(self):
         """K larger than result set."""

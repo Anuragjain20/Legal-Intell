@@ -19,6 +19,7 @@ LEGAL_TERMS = {
     "duty": QueryIntent.OBLIGATION,
     "liable": QueryIntent.OBLIGATION,
     "responsible": QueryIntent.OBLIGATION,
+    "disclose": QueryIntent.OBLIGATION,
     # Rights
     "right": QueryIntent.RIGHT,
     "entitled": QueryIntent.RIGHT,
@@ -43,6 +44,7 @@ LEGAL_TERMS = {
     # Definitions
     "definition": QueryIntent.DEFINITION,
     "means": QueryIntent.DEFINITION,
+    "mean": QueryIntent.DEFINITION,
     "defined": QueryIntent.DEFINITION,
     "definition of": QueryIntent.DEFINITION,
     "what is": QueryIntent.DEFINITION,
@@ -65,7 +67,7 @@ LEGAL_TERMS = {
 
 NEGATION_WORDS = {"not", "no", "never", "cannot", "can't", "won't", "shouldn't", "doesn't", "don't"}
 
-TEMPORAL_WORDS = {"when", "after", "before", "during", "until", "since", "upon", "date", "time", "period"}
+TEMPORAL_WORDS = {"when", "after", "before", "during", "until", "since", "upon", "date", "time", "period", "terminate"}
 
 SECTION_PATTERN = re.compile(r"\b(\d+(?:\.\d+)*(?:\([a-z]\))?)\b", re.IGNORECASE)
 QUOTED_PATTERN = re.compile(r'"([^"]+)"')
@@ -115,16 +117,22 @@ class QueryAnalyzer:
     def _detect_intent(self, query: str) -> QueryIntent:
         """Detect the primary intent of the query."""
         query_lower = query.lower()
-        intent_scores: dict[QueryIntent, int] = {}
+        # Count matches per intent, and track each intent's earliest match
+        # position as a tiebreak - the first legal term a question raises is
+        # usually its real subject, ahead of an incidental later mention.
+        intent_counts: dict[QueryIntent, int] = {}
+        intent_first_pos: dict[QueryIntent, int] = {}
 
-        # Count term occurrences for each intent
         for term, intent in LEGAL_TERMS.items():
-            if term in query_lower:
-                intent_scores[intent] = intent_scores.get(intent, 0) + 1
+            position = query_lower.find(term)
+            if position != -1:
+                intent_counts[intent] = intent_counts.get(intent, 0) + 1
+                intent_first_pos[intent] = min(intent_first_pos.get(intent, position), position)
 
-        # Return most frequent intent, or default to general inquiry
-        if intent_scores:
-            return max(intent_scores, key=intent_scores.get)
+        # Return the intent with the most matches, breaking ties by whichever
+        # matched earliest in the query, or default to general inquiry.
+        if intent_counts:
+            return max(intent_counts, key=lambda i: (intent_counts[i], -intent_first_pos[i]))
 
         # Heuristic fallbacks
         if "how" in query_lower or "what" in query_lower or "why" in query_lower:
@@ -144,8 +152,9 @@ class QueryAnalyzer:
 
         for term in LEGAL_TERMS.keys():
             if term in query_lower and term not in seen:
-                # Find exact boundaries to avoid partial matches
-                pattern = rf"\b{re.escape(term)}\b"
+                # Match on a word start so plurals/suffixes count (e.g. "obligation"
+                # inside "obligations"), while still rejecting mid-word substrings.
+                pattern = rf"\b{re.escape(term)}"
                 if re.search(pattern, query_lower):
                     # Extract potential section references near the term
                     section = None

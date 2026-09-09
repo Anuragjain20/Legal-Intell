@@ -90,9 +90,9 @@ def test_prompt_contains_grounding_instructions_and_sources():
 
     assert "USER QUESTION:" in prompt
     assert "SOURCES:" in prompt
-    assert "Answer using ONLY the provided sources." in prompt
-    assert "preamble, recitals, and long title" in prompt
-    assert "If the sources do not contain sufficient information" in prompt
+    assert "using only the sources above" in prompt
+    assert "preambles, recitals, long titles" in prompt
+    assert "If sources do NOT contain sufficient information" in prompt
     assert "What are the termination conditions?" in prompt
 
 

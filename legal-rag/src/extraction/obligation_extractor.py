@@ -98,7 +98,7 @@ class ObligationExtractor:
         # Calculate overall confidence
         if obligations or rights:
             confidence = sum(
-                o.confidence for o in obligations + [r.confidence for r in rights]
+                item.confidence for item in [*obligations, *rights]
             ) / max(len(obligations) + len(rights), 1)
         else:
             confidence = 0.7  # Low confidence if nothing found
@@ -152,8 +152,8 @@ class ObligationExtractor:
                     actor_name = normalize_actor_name(match.group(pattern.groups["actor"]))
                     action = match.group(pattern.groups["action"]).strip()
 
-                    # Skip very short actions (likely false positives)
-                    if len(action) < 5:
+                    # Skip empty/junk actions, but keep short real verbs like "pay"
+                    if len(action) < 3:
                         continue
 
                     # Extract deadline if present
@@ -233,8 +233,8 @@ class ObligationExtractor:
                     actor_name = normalize_actor_name(match.group(pattern.groups["actor"]))
                     action = match.group(pattern.groups["action"]).strip()
 
-                    # Skip very short actions
-                    if len(action) < 5:
+                    # Skip empty/junk actions, but keep short real verbs like "pay"
+                    if len(action) < 3:
                         continue
 
                     # Extract conditions

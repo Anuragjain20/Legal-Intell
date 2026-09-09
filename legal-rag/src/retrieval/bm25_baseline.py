@@ -228,7 +228,7 @@ class BM25Retriever:
 
         # Stage 2: Index Search
         search_start = time.time()
-        raw_results = self.index.search(query_tokens if query_tokens else query, top_k=top_k)
+        raw_results = self.index.search(query, top_k=top_k)
         search_time_ms = (time.time() - search_start) * 1000
 
         candidates_found = len(raw_results)

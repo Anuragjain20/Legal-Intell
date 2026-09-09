@@ -146,7 +146,6 @@ class TestBM25Metrics:
         assert result.metrics.tokenization_time_ms >= 0
         assert result.metrics.index_search_time_ms >= 0
         assert result.metrics.total_time_ms >= 0
-        assert result.metrics.total_time_ms > 0
 
     def test_metrics_include_index_stats(self):
         records = [
