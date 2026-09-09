@@ -19,5 +19,6 @@ data/documents/
 data/documents.json
 data/evaluation_results*.json
 !data/documents/.gitkeep
+doc/
 
 .streamlit/secrets.toml

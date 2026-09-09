@@ -12,5 +12,6 @@ build/
 *.pyc
 *.pyo
 env/
+/doc/
 
 
