@@ -11,7 +11,9 @@ This folder documents the actual, as-implemented system in `legal-rag/`, for two
 
 A local FastAPI backend, with a thin Streamlit UI over it, that turns legal PDFs (statutes, contracts, judgments) into a retrieval-augmented Q&A system:
 
-`PDF → text extraction → legal-structure-aware chunking → local embeddings → Chroma vector store → cosine-similarity retrieval + hand-rolled re-rank → context assembly → DeepSeek LLM → citation verification against retrieved metadata`
+`PDF → text extraction → legal-structure-aware chunking → local embeddings → Chroma vector store → hybrid (dense + BM25, RRF-fused) retrieval → context assembly → DeepSeek LLM → citation verification against retrieved metadata`
+
+The retrieval method is not a default — it's the winner of a measured four-way comparison (dense, BM25, hybrid, hybrid+reranker) against a 42-question evaluation dataset. See [06-evaluation.md](06-evaluation.md).
 
 The one deliberate design bet worth leading with in an interview: **citations are never trusted from the LLM's text.** The model is asked to emit `[SOURCE_N]` markers; a separate `CitationMapper` (`src/generation/citations.py`) resolves each marker against the *retrieval* metadata, not the model's claims. See [05-generation.md](05-generation.md).
 
@@ -22,9 +24,9 @@ The one deliberate design bet worth leading with in an interview: **citations ar
 | [01-architecture.md](01-architecture.md) | End-to-end system map: ingest-time path vs. query-time path, module boundaries, why they're split this way |
 | [02-ingestion.md](02-ingestion.md) | PDF extraction → structure detection (regex cascade) → legal-aware chunking. The most bespoke part of the codebase |
 | [03-embeddings-vectorstore.md](03-embeddings-vectorstore.md) | Embedding provider abstraction, BGE model, Chroma vs. local JSON store, score semantics |
-| [04-retrieval.md](04-retrieval.md) | Query embedding → similarity search → threshold filter → hand-rolled re-rank. Exact funnel numbers |
+| [04-retrieval.md](04-retrieval.md) | Query embedding → similarity search → threshold filter → hand-rolled re-rank. Exact funnel numbers, dense and hybrid both |
 | [05-generation.md](05-generation.md) | Context building, prompt construction, DeepSeek call, citation verification as the trust boundary |
-| [06-evaluation.md](06-evaluation.md) | What the eval harness actually measures, real numbers from this repo, a genuine bug in it, and what it doesn't measure |
+| [06-evaluation.md](06-evaluation.md) | The four-method retrieval comparison (dense/BM25/hybrid/hybrid+reranker), why the reranker was rejected, and real generation-faithfulness results including the retrieval-gate-vs-generation-gate finding |
 | [07-interview-narrative.md](07-interview-narrative.md) | A rehearsable story: what I built, why, trade-offs, what I'd do next |
 | [08-question-bank.md](08-question-bank.md) | Likely interview questions with grounded answers (file/line citations), including "gotcha" questions about this specific codebase's weak spots |
 | [09-retractions.md](09-retractions.md) | What was fabricated in an earlier version of this repo, and why it was removed rather than quietly fixed |
@@ -32,15 +34,21 @@ The one deliberate design bet worth leading with in an interview: **citations ar
 ## How to re-verify anything in this doc set yourself
 
 ```bash
-# Run the real test suite (254 pass / 59 fail / 1 xfail as of this writing — see 06 for why)
+# Run the real test suite (311 pass / 4 xfail as of this writing — see 06 for why)
 python -m pytest -q
 
 # Re-ingest the corpus from source PDFs into a fresh Chroma collection
 python scripts/ingest.py --source <path to source PDFs>
 
-# Re-run retrieval evaluation against the current index
-python scripts/run_evaluation.py
+# Re-run retrieval evaluation for each method and compare
+python scripts/run_evaluation.py --method dense
+python scripts/run_evaluation.py --method bm25
+python scripts/run_evaluation.py --method hybrid
+python scripts/run_evaluation.py --method hybrid_rerank
 cat data/eval_runs/<latest timestamp>/results.json
+
+# Generation-faithfulness eval - runs the real LLM call, needs a funded DEEPSEEK_API_KEY
+python scripts/run_generation_eval.py
 
 # Start the app: API first (owns the pipeline), then the UI (needs
 # DEEPSEEK_API_KEY in .env on the API side for the generation step)
@@ -55,19 +63,24 @@ legal-rag/
   app.py                     Streamlit UI - thin HTTP client, zero src/ imports
   src/
     api/main.py               FastAPI backend: /health, /ingest, /query
-    services.py                Composition root - build_services() wires everything
+    services.py                Composition root - build_services() wires everything,
+                                including which retrieval method is live (hybrid)
     config/settings.py       Env-driven Settings dataclass
     ingestion/                PDF → pages → structure → chunks
     embeddings/                Chunk/query text → vectors
     vectorstore/                Vector persistence + similarity search
-    retrieval/                  Query → ranked results
+    retrieval/                  dense_baseline, bm25_baseline, hybrid_retrieval,
+                                 reranking, hybrid_query_retriever (the live path)
     generation/                  Context + prompt + LLM call + citations
-    evaluation/                  Retrieval-only eval harness (metrics.py, matching.py, harness.py)
+    evaluation/                  metrics.py, matching.py, harness.py,
+                                 retriever_adapters.py (BM25/hybrid/reranked → harness),
+                                 generation_harness.py (faithfulness eval, real results in 06)
   scripts/
     ingest.py                  Corpus ingestion CLI
-    run_evaluation.py          Retrieval evaluation CLI, writes data/eval_runs/<timestamp>/
+    run_evaluation.py          Retrieval evaluation CLI, --method dense|bm25|hybrid|hybrid_rerank
+    run_generation_eval.py     Generation-faithfulness eval CLI
     validate_dataset.py        Verifies eval dataset spans still match the live index
-  tests/                      314 tests, one per src/ module roughly
+  tests/                      315 tests, one per src/ module roughly
   data/
     documents.json            Upload registry
     chroma/                    Persistent Chroma collection (the real index)
