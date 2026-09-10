@@ -51,6 +51,13 @@ class DocumentRegistry:
             json.dumps({"documents": list(documents.values())}, indent=2), encoding="utf-8"
         )
 
+    def list_all(self) -> list[DocumentMetadata]:
+        entries = self._load()
+        return [
+            DocumentMetadata(**{**entry, "upload_timestamp": datetime.fromisoformat(entry["upload_timestamp"])})
+            for entry in entries.values()
+        ]
+
     def _load(self) -> dict[str, dict]:
         if not self.registry_path.exists():
             return {}

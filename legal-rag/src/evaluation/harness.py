@@ -64,10 +64,19 @@ def load_dataset(dataset_path: Path) -> dict:
 def _find_relevant_chunk_ids(
     documents: list[str],
     spans: list[str],
-    retrieved: list,
+    chunks_by_document: dict[str, list[tuple[str, str]]],
 ) -> list[str]:
-    """Return retrieved chunk_ids (in rank order) whose text satisfies one
-    of the expected (document, span) pairs.
+    """Return every chunk_id anywhere in the index whose text satisfies one
+    of the expected (document, span) pairs - the full ground-truth universe,
+    not just whichever of those chunks happened to be retrieved.
+
+    This must scan the whole index (chunks_by_document, built once per
+    run from vector_store.get_all() - see build_relevant_chunk_index)
+    rather than only the chunks a retriever actually returned. Scoping the
+    search to `retrieved` would make relevant_chunk_ids a subset of
+    retrieved_chunk_ids by construction, which silently caps
+    Recall@K's denominator to whatever was found and inflates recall
+    toward 1.0 on any partial hit - exactly the bug this replaces.
 
     A multi-document comparison case (one span per document) needs each
     span matched against its own document; a single-document multi-span
@@ -77,19 +86,34 @@ def _find_relevant_chunk_ids(
         documents = documents * len(spans)
 
     relevant: list[str] = []
-    for chunk in retrieved:
-        for doc_name, span in zip(documents, spans):
-            if chunk.record.document_name == doc_name and span_matches(span, chunk.record.text):
-                relevant.append(chunk.record.chunk_id)
-                break
+    for doc_name, span in zip(documents, spans):
+        for chunk_id, text in chunks_by_document.get(doc_name, []):
+            if span_matches(span, text):
+                relevant.append(chunk_id)
     return relevant
 
 
-def evaluate_case(retriever, case: dict, top_k: int = 5) -> CaseResult:
+def build_relevant_chunk_index(vector_store) -> dict[str, list[tuple[str, str]]]:
+    """Return {document_name: [(chunk_id, text), ...]} for every indexed
+    chunk - the ground-truth universe evaluate_case scores retrieval
+    against. Call once per run (not per question) and pass the result to
+    run_evaluation/evaluate_case; vector_store only needs get_all()."""
+    by_document: dict[str, list[tuple[str, str]]] = {}
+    for record in vector_store.get_all():
+        by_document.setdefault(record.document_name, []).append((record.chunk_id, record.text))
+    return by_document
+
+
+def evaluate_case(
+    retriever, case: dict, chunks_by_document: dict[str, list[tuple[str, str]]], top_k: int = 5
+) -> CaseResult:
     """Evaluate one dataset question. `retriever` needs only a
     `retrieve(question, top_k) -> list[chunk with .record]` method that
     raises NoRelevantResultsError on no candidates - Retriever itself, or
-    any of the adapters in retriever_adapters.py."""
+    any of the adapters in retriever_adapters.py. `chunks_by_document` is
+    the whole index's ground-truth universe (build_relevant_chunk_index),
+    used to score recall against every relevant chunk that exists, not
+    just whichever ones were retrieved."""
     result = CaseResult(
         case_id=case["id"],
         question_type=case["question_type"],
@@ -113,7 +137,7 @@ def evaluate_case(retriever, case: dict, top_k: int = 5) -> CaseResult:
 
     documents = case["expected_document"].split(DOCUMENT_SEPARATOR)
     spans = split_multi_span(case["expected_answer_span"])
-    result.relevant_chunk_ids = _find_relevant_chunk_ids(documents, spans, retrieved)
+    result.relevant_chunk_ids = _find_relevant_chunk_ids(documents, spans, chunks_by_document)
 
     if result.relevant_chunk_ids:
         for k in K_VALUES:
@@ -136,6 +160,7 @@ def run_evaluation(
     retriever,
     dataset: dict,
     similarity_threshold: float | None,
+    chunks_by_document: dict[str, list[tuple[str, str]]],
     top_k: int = 5,
 ) -> EvaluationSummary:
     """Run every dataset question through `retriever` and score the results.
@@ -145,6 +170,12 @@ def run_evaluation(
     src/evaluation/retriever_adapters.py for BM25/hybrid/reranked wrappers
     around Retriever's shape.
 
+    `chunks_by_document` is the whole index's ground-truth universe (see
+    build_relevant_chunk_index) - built once per run and passed to every
+    evaluate_case call so Recall@K is scored against every relevant chunk
+    that exists, not just whichever ones a given question's retrieval
+    happened to return.
+
     `similarity_threshold` gates the "did the confidence gate correctly
     withhold an answer" metric on the unanswerable cases. Pass None when the
     retrieval method's score scale isn't a cosine similarity comparable to
@@ -152,7 +183,9 @@ def run_evaluation(
     scores) - the gate rate is then reported as None rather than computed
     against a threshold that doesn't apply to that scale.
     """
-    all_results = [evaluate_case(retriever, case, top_k=top_k) for case in dataset["questions"]]
+    all_results = [
+        evaluate_case(retriever, case, chunks_by_document, top_k=top_k) for case in dataset["questions"]
+    ]
 
     in_corpus = [r for r in all_results if not r.is_out_of_corpus]
     unanswerable = [r for r in all_results if r.is_out_of_corpus]

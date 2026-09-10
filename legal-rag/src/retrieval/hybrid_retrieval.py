@@ -106,12 +106,17 @@ class HybridRetriever:
         self.dense_weight = dense_weight / total_weight
         self.bm25_weight = bm25_weight / total_weight
 
-    def retrieve_hybrid(self, query: str, top_k: int = 5) -> HybridResult:
+    def retrieve_hybrid(
+        self, query: str, top_k: int = 5, document_ids: list[str] | None = None
+    ) -> HybridResult:
         """Execute hybrid retrieval with rank fusion.
 
         Args:
             query: User query string
             top_k: Number of results to return
+            document_ids: If set, restrict both dense and BM25 candidates to
+                these document_ids before scoring/fusion (e.g. case-scoped
+                retrieval). None searches the whole corpus, unchanged.
 
         Returns:
             HybridResult with fused chunks and metrics
@@ -128,7 +133,7 @@ class HybridRetriever:
         # Stage 1: Dense Retrieval
         dense_start = time.time()
         try:
-            dense_result = self.dense_retriever.retrieve_dense(query, top_k=top_k * 2)
+            dense_result = self.dense_retriever.retrieve_dense(query, top_k=top_k * 2, document_ids=document_ids)
             dense_time_ms = (time.time() - dense_start) * 1000
             dense_candidates = len(dense_result.chunks)
         except NoRelevantResultsError:
@@ -139,7 +144,7 @@ class HybridRetriever:
         # Stage 2: BM25 Retrieval
         bm25_start = time.time()
         try:
-            bm25_result = self.bm25_retriever.retrieve_bm25(query, top_k=top_k * 2)
+            bm25_result = self.bm25_retriever.retrieve_bm25(query, top_k=top_k * 2, document_ids=document_ids)
             bm25_time_ms = (time.time() - bm25_start) * 1000
             bm25_candidates = len(bm25_result.chunks)
         except NoRelevantResultsError:

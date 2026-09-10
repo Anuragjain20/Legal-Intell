@@ -49,11 +49,17 @@ class LocalVectorStore:
     def list_document_ids(self) -> list[str]:
         return sorted({record.document_id for record in self._records_by_chunk_id.values()})
 
-    def search(self, vector: list[float], top_k: int = 5) -> list[SearchResult]:
+    def search(
+        self, vector: list[float], top_k: int = 5, document_ids: list[str] | None = None
+    ) -> list[SearchResult]:
         self._validate_vector(vector)
+        candidates = self._records_by_chunk_id.values()
+        if document_ids is not None:
+            allowed = set(document_ids)
+            candidates = [record for record in candidates if record.document_id in allowed]
         scored = [
             SearchResult(record=record, score=self._cosine_similarity(vector, record.vector))
-            for record in self._records_by_chunk_id.values()
+            for record in candidates
         ]
         scored.sort(key=lambda item: item.score, reverse=True)
         return scored[:top_k]

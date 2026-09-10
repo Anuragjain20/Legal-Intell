@@ -58,5 +58,7 @@ class VectorStore(Protocol):
     def list_document_ids(self) -> list[str]:
         ...
 
-    def search(self, vector: list[float], top_k: int = 5) -> list[SearchResult]:
+    def search(
+        self, vector: list[float], top_k: int = 5, document_ids: list[str] | None = None
+    ) -> list[SearchResult]:
         ...

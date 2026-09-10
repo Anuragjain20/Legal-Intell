@@ -7,14 +7,17 @@ this must be re-run (and the dataset patched) after any re-ingest.
 
 Usage:
     python scripts/validate_dataset.py [--fix]
+    python scripts/validate_dataset.py --chroma-dir data/chroma_recursive
+    python scripts/validate_dataset.py --collection legal_rag
 
-Without --fix, only reports failures. With --fix, rewrites anchor_chunk_id
-for every case whose span was found under a different chunk_id than the
-dataset currently records.
+--chroma-dir/--collection let this be pointed at any per-chunking-method
+index (see scripts/ingest.py --chunking-method) to check span-findability
+under a different chunker, not just the default data/chroma.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -29,15 +32,16 @@ from src.evaluation.matching import (  # noqa: E402
 )
 
 DATASET_PATH = APP_DIR / "data" / "evaluation_dataset.json"
-CHROMA_DIR = APP_DIR / "data" / "chroma"
+DEFAULT_CHROMA_DIR = APP_DIR / "data" / "chroma"
+DEFAULT_COLLECTION = "legal_rag"
 
 
-def _load_chunks_by_document() -> dict[str, list[tuple[str, str]]]:
+def _load_chunks_by_document(chroma_dir: Path, collection_name: str) -> dict[str, list[tuple[str, str]]]:
     """Return {document_name: [(chunk_id, text), ...]} for every indexed chunk."""
     import chromadb
 
-    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-    collection = client.get_collection("legal_rag")
+    client = chromadb.PersistentClient(path=str(chroma_dir))
+    collection = client.get_collection(collection_name)
     result = collection.get(limit=100_000, include=["documents", "metadatas"])
 
     by_document: dict[str, list[tuple[str, str]]] = {}
@@ -48,10 +52,15 @@ def _load_chunks_by_document() -> dict[str, list[tuple[str, str]]]:
 
 
 def main() -> None:
-    fix = "--fix" in sys.argv
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--fix", action="store_true", help="Rewrite stale anchor_chunk_id values in place")
+    parser.add_argument("--chroma-dir", type=Path, default=DEFAULT_CHROMA_DIR, help="Chroma directory to validate against")
+    parser.add_argument("--collection", default=DEFAULT_COLLECTION, help="Chroma collection name")
+    args = parser.parse_args()
+    fix = args.fix
 
     dataset = json.loads(DATASET_PATH.read_text(encoding="utf-8"))
-    chunks_by_document = _load_chunks_by_document()
+    chunks_by_document = _load_chunks_by_document(args.chroma_dir, args.collection)
 
     total = 0
     passed = 0

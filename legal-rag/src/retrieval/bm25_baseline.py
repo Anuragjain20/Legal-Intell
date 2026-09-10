@@ -119,12 +119,23 @@ class BM25Index:
         total_length = sum(self.document_lengths.values())
         self.avg_doc_length = total_length / self.num_docs
 
-    def search(self, query: str, top_k: int = 5) -> list[tuple[str, float]]:
+    def search(
+        self, query: str, top_k: int = 5, allowed_chunk_ids: set[str] | None = None
+    ) -> list[tuple[str, float]]:
         """Search the index using BM25 scoring.
 
         Args:
             query: Query string
             top_k: Number of results to return
+            allowed_chunk_ids: If set, restrict candidates to these chunk_ids
+                before scoring (e.g. case-scoped retrieval) - matching chunk_ids
+                outside this set are never scored. IDF and length-normalization
+                statistics (num_docs, document_frequency, avg_doc_length) remain
+                corpus-global regardless of this restriction: they are computed
+                once in _build_statistics() over every indexed chunk, not
+                recomputed per restriction, since global IDF is more stable
+                than IDF estimated from a small subset. None searches the
+                whole corpus, unchanged from prior behavior.
 
         Returns:
             List of (chunk_id, score) tuples, sorted by score descending
@@ -148,7 +159,10 @@ class BM25Index:
             idf = log((self.num_docs - df + 0.5) / (df + 0.5) + 1)
 
             # Score documents containing this term
-            for chunk_id in self.inverted_index[token]:
+            candidate_chunk_ids = self.inverted_index[token]
+            if allowed_chunk_ids is not None:
+                candidate_chunk_ids = candidate_chunk_ids & allowed_chunk_ids
+            for chunk_id in candidate_chunk_ids:
                 tf = self.term_frequencies[chunk_id][token]
                 doc_len = self.document_lengths[chunk_id]
 
@@ -202,12 +216,17 @@ class BM25Retriever:
 
         self.index._build_statistics()
 
-    def retrieve_bm25(self, query: str, top_k: int = 5) -> BM25Result:
+    def retrieve_bm25(
+        self, query: str, top_k: int = 5, document_ids: list[str] | None = None
+    ) -> BM25Result:
         """Execute BM25 retrieval pipeline with instrumentation.
 
         Args:
             query: User query string
             top_k: Number of results to return
+            document_ids: If set, restrict candidates to chunks belonging to
+                these document_ids before scoring (e.g. case-scoped
+                retrieval). None searches the whole corpus, unchanged.
 
         Returns:
             BM25Result with chunks and metrics
@@ -227,8 +246,14 @@ class BM25Retriever:
         tokenization_time_ms = (time.time() - tokenize_start) * 1000
 
         # Stage 2: Index Search
+        allowed_chunk_ids = None
+        if document_ids is not None:
+            allowed = set(document_ids)
+            allowed_chunk_ids = {
+                chunk_id for chunk_id, record in self.index.documents.items() if record.document_id in allowed
+            }
         search_start = time.time()
-        raw_results = self.index.search(query, top_k=top_k)
+        raw_results = self.index.search(query, top_k=top_k, allowed_chunk_ids=allowed_chunk_ids)
         search_time_ms = (time.time() - search_start) * 1000
 
         candidates_found = len(raw_results)

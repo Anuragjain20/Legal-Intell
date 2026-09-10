@@ -77,12 +77,17 @@ class DenseRetriever:
         self.vector_store = vector_store
         self.similarity_threshold = similarity_threshold
 
-    def retrieve_dense(self, query: str, top_k: int = 5) -> DenseRetrievalResult:
+    def retrieve_dense(
+        self, query: str, top_k: int = 5, document_ids: list[str] | None = None
+    ) -> DenseRetrievalResult:
         """Execute dense retrieval pipeline with full instrumentation.
 
         Args:
             query: User query string
             top_k: Number of results to return
+            document_ids: If set, restrict candidates to these document_ids
+                before scoring (e.g. case-scoped retrieval). None searches
+                the whole corpus, unchanged from prior behavior.
 
         Returns:
             DenseRetrievalResult with chunks and metrics
@@ -103,7 +108,7 @@ class DenseRetriever:
 
         # Stage 2: Vector Search
         search_start = time.time()
-        raw_results = self.vector_store.search(query_vector, top_k=top_k)
+        raw_results = self.vector_store.search(query_vector, top_k=top_k, document_ids=document_ids)
         search_time_ms = (time.time() - search_start) * 1000
 
         # Capture index metadata

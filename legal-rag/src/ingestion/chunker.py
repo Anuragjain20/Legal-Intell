@@ -13,12 +13,21 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import Protocol
 
 from src.ingestion.models import Chunk, DocumentPage
 from src.ingestion.structure_detector import DetectedParagraph, StructureDetector
 from src.ingestion.section_parser import parse_section_structure
 
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+
+class Chunker(Protocol):
+    """Any strategy that splits extracted pages into indexable Chunk objects."""
+
+    def chunk(
+        self, *, document_id: str, pages: list[DocumentPage], category: str | None = None
+    ) -> list[Chunk]: ...
 
 
 @dataclass(frozen=True)

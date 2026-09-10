@@ -436,3 +436,41 @@ class TestDenseRetrievalIndependence:
         doc_ids = {chunk.document_id for chunk in result.chunks}
         assert "doc-1" in doc_ids
         assert "doc-2" in doc_ids
+
+
+class TestDocumentIdScoping:
+    """Case-scoped retrieval: restricting candidates via document_ids."""
+
+    def test_document_ids_filter_restricts_results(self, tmp_path):
+        chunks = [
+            make_chunk("a", "Termination clause.", 1, "TERMINATION", document_id="doc-1"),
+            make_chunk("b", "Termination rule.", 2, "TERMINATION", document_id="doc-2"),
+        ]
+        store = index_chunks(tmp_path, chunks)
+        retriever = DenseRetriever(embedding_provider=FakeEmbeddingProvider(), vector_store=store)
+
+        result = retriever.retrieve_dense("termination", top_k=5, document_ids=["doc-1"])
+
+        doc_ids = {chunk.document_id for chunk in result.chunks}
+        assert doc_ids == {"doc-1"}
+
+    def test_document_ids_none_is_unfiltered(self, tmp_path):
+        chunks = [
+            make_chunk("a", "Termination clause.", 1, "TERMINATION", document_id="doc-1"),
+            make_chunk("b", "Termination rule.", 2, "TERMINATION", document_id="doc-2"),
+        ]
+        store = index_chunks(tmp_path, chunks)
+        retriever = DenseRetriever(embedding_provider=FakeEmbeddingProvider(), vector_store=store)
+
+        result = retriever.retrieve_dense("termination", top_k=5, document_ids=None)
+
+        doc_ids = {chunk.document_id for chunk in result.chunks}
+        assert doc_ids == {"doc-1", "doc-2"}
+
+    def test_document_ids_filter_can_empty_results(self, tmp_path):
+        chunks = [make_chunk("a", "Termination clause.", 1, "TERMINATION", document_id="doc-1")]
+        store = index_chunks(tmp_path, chunks)
+        retriever = DenseRetriever(embedding_provider=FakeEmbeddingProvider(), vector_store=store)
+
+        with pytest.raises(NoRelevantResultsError):
+            retriever.retrieve_dense("termination", top_k=5, document_ids=["doc-does-not-exist"])

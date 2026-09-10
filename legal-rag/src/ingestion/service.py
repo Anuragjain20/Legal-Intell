@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
 
-from src.ingestion.chunker import LegalChunker
+from src.ingestion.chunker import Chunker, LegalChunker
 from src.ingestion.exceptions import UploadValidationError
 from src.ingestion.models import Chunk, DocumentMetadata
 from src.ingestion.pdf_extractor import PDFExtractionResult, PDFExtractor
@@ -21,12 +21,13 @@ class DocumentUploadService:
         self,
         storage_dir: Path,
         max_file_size_bytes: int = 50 * 1024 * 1024,
+        chunker: Chunker | None = None,
     ) -> None:
         self.validator = DocumentValidator(max_file_size_bytes=max_file_size_bytes)
         self.storage = DocumentStorage(storage_dir)
         self.registry = DocumentRegistry(storage_dir.parent / "documents.json")
         self.extractor = PDFExtractor()
-        self.chunker = LegalChunker()
+        self.chunker = chunker or LegalChunker()
 
     def upload(
         self, filename: str, content: bytes, category: str | None = None, source_path: str | None = None

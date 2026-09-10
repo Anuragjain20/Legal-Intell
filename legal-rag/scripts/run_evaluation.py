@@ -19,103 +19,59 @@ Usage:
     python scripts/run_evaluation.py --method bm25
     python scripts/run_evaluation.py --method hybrid
     python scripts/run_evaluation.py --method hybrid_rerank
+    python scripts/run_evaluation.py --method hybrid --chunking-method recursive
+
+--chunking-method only selects which per-method Chroma directory to read
+from (data/chroma for "legal", data/chroma_<method> otherwise) - this
+script never chunks anything itself, it only evaluates retrieval over an
+already-indexed collection (see scripts/ingest.py --chunking-method).
+
+The retriever-building and result-formatting logic lives in
+src/evaluation/runner.py, shared with the API's POST /evaluate endpoint
+(src/api/main.py) so both have exactly one implementation.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
-import subprocess
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(APP_DIR))
 
-from src.config.settings import Settings  # noqa: E402
-from src.embeddings.providers import LocalHuggingFaceEmbeddingProvider  # noqa: E402
-from src.embeddings.service import EmbeddingService  # noqa: E402
-from src.evaluation.harness import load_dataset, run_evaluation  # noqa: E402
-from src.evaluation.retriever_adapters import (  # noqa: E402
-    BM25RetrieverAdapter,
-    HybridRetrieverAdapter,
-    RerankedHybridRetrieverAdapter,
+from src.evaluation.runner import (  # noqa: E402
+    RETRIEVAL_METHODS,
+    run_and_build_output,
+    write_results,
 )
-from src.retrieval.bm25_baseline import BM25Retriever  # noqa: E402
-from src.retrieval.dense_baseline import DenseRetriever  # noqa: E402
-from src.retrieval.hybrid_retrieval import HybridRetriever  # noqa: E402
-from src.retrieval.reranking import QueryTermOverlapReranker, RankerPipeline  # noqa: E402
-from src.retrieval.retriever import Retriever  # noqa: E402
-from src.vectorstore.chroma_store import ChromaVectorStore  # noqa: E402
+from src.ingestion.chunker_factory import CHUNKING_METHODS  # noqa: E402
 
 DATA_DIR = APP_DIR / "data"
-CHROMA_DIR = DATA_DIR / "chroma"
-DATASET_PATH = DATA_DIR / "evaluation_dataset.json"
 TOP_K = 5
-METHODS = ("dense", "bm25", "hybrid", "hybrid_rerank")
-
-
-def _git_commit_sha() -> str:
-    try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=APP_DIR, text=True
-        ).strip()
-    except Exception:  # noqa: BLE001 - manifest field is best-effort
-        return "unknown"
-
-
-def _build_retriever(method: str, settings: Settings):
-    """Return (retriever, similarity_threshold_or_None, embedding_provider).
-
-    Only dense retrieval's threshold is a cosine similarity comparable to
-    settings.similarity_threshold - every other method returns None so the
-    confidence-gate rate is reported honestly as not applicable.
-    """
-    embedding_provider = LocalHuggingFaceEmbeddingProvider(model_name=settings.embedding_model)
-    embedding_service = EmbeddingService(provider=embedding_provider)
-    vector_store = ChromaVectorStore(storage_dir=CHROMA_DIR, dimension=embedding_service.embedding_dimension())
-
-    if method == "dense":
-        retriever = Retriever(
-            embedding_provider=embedding_provider,
-            vector_store=vector_store,
-            similarity_threshold=settings.similarity_threshold,
-        )
-        return retriever, settings.similarity_threshold, embedding_provider
-
-    records = vector_store.get_all()
-    bm25_retriever = BM25Retriever(chunks=records)
-
-    if method == "bm25":
-        return BM25RetrieverAdapter(bm25_retriever=bm25_retriever), None, embedding_provider
-
-    dense_retriever = DenseRetriever(embedding_provider=embedding_provider, vector_store=vector_store)
-    hybrid_retriever = HybridRetriever(dense_retriever=dense_retriever, bm25_retriever=bm25_retriever)
-
-    if method == "hybrid":
-        return HybridRetrieverAdapter(hybrid_retriever=hybrid_retriever), None, embedding_provider
-
-    ranker_pipeline = RankerPipeline(QueryTermOverlapReranker())
-    return (
-        RerankedHybridRetrieverAdapter(hybrid_retriever=hybrid_retriever, ranker_pipeline=ranker_pipeline),
-        None,
-        embedding_provider,
-    )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--method", choices=METHODS, default="dense", help="Retrieval method to evaluate")
+    parser.add_argument("--method", choices=RETRIEVAL_METHODS, default="dense", help="Retrieval method to evaluate")
+    parser.add_argument(
+        "--chunking-method",
+        choices=CHUNKING_METHODS,
+        default="legal",
+        help="Which chunking method's Chroma index to evaluate against (default: legal). "
+        "Evaluation never chunks anything itself - this only selects the pre-indexed collection.",
+    )
     args = parser.parse_args()
 
-    settings = Settings.from_env(APP_DIR / ".env")
-    retriever, gate_threshold, embedding_provider = _build_retriever(args.method, settings)
+    run_result = run_and_build_output(
+        app_dir=APP_DIR,
+        retrieval_method=args.method,
+        chunking_method=args.chunking_method,
+        top_k=TOP_K,
+    )
+    summary = run_result.summary
 
-    dataset = load_dataset(DATASET_PATH)
-    summary = run_evaluation(retriever, dataset, gate_threshold, top_k=TOP_K)
-
-    print(f"Retrieval evaluation ({args.method})")
+    print(f"Retrieval evaluation ({args.method}, chunking={args.chunking_method})")
     print("=" * 60)
     print(f"Total cases: {summary.total_cases}  (in-corpus: {summary.in_corpus_cases}, unanswerable: {summary.unanswerable_cases})")
     print()
@@ -139,50 +95,7 @@ def main() -> None:
         for r in errors:
             print(f"  {r.case_id}: {r.error}")
 
-    manifest = {
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-        "git_commit_sha": _git_commit_sha(),
-        "embedding_model": embedding_provider.model_name,
-        "embedding_version": embedding_provider.model_version,
-        "retrieval_method": args.method,
-        "similarity_threshold": gate_threshold,
-        "dataset_version": dataset["metadata"]["version"],
-        "dataset_total_questions": len(dataset["questions"]),
-        "top_k": TOP_K,
-    }
-
-    output = {
-        "manifest": manifest,
-        "summary": {
-            "total_cases": summary.total_cases,
-            "in_corpus_cases": summary.in_corpus_cases,
-            "unanswerable_cases": summary.unanswerable_cases,
-            "overall": summary.overall,
-            "by_question_type": summary.by_question_type,
-            "unanswerable_confidence_gate_rate": summary.unanswerable_confidence_gate_rate,
-        },
-        "case_results": [
-            {
-                "case_id": r.case_id,
-                "question_type": r.question_type,
-                "is_out_of_corpus": r.is_out_of_corpus,
-                "retrieved_chunk_ids": r.retrieved_chunk_ids,
-                "relevant_chunk_ids": r.relevant_chunk_ids,
-                "top_score": r.top_score,
-                "refused": r.refused,
-                "error": r.error,
-                "recall_at_k": r.recall_at_k,
-                "precision_at_5": r.precision_at_5,
-                "mrr": r.mrr,
-            }
-            for r in summary.case_results
-        ],
-    }
-
-    run_dir = DATA_DIR / "eval_runs" / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    run_dir.mkdir(parents=True, exist_ok=True)
-    results_path = run_dir / "results.json"
-    results_path.write_text(json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8")
+    results_path = write_results(DATA_DIR, run_result.output)
     print(f"\nWrote results to {results_path}")
 
 

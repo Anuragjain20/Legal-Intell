@@ -436,3 +436,38 @@ class TestLatencyPerformance:
 
         # BM25 should be fast (no embedding needed)
         assert result.metrics.total_time_ms < 100  # Much faster than embedding
+
+
+class TestDocumentIdScoping:
+    """Case-scoped retrieval: restricting candidates via document_ids."""
+
+    def test_document_ids_filter_restricts_results(self):
+        records = [
+            make_record("a", "Termination clause requires notice.", 1, "TERMINATION", document_id="doc-1"),
+            make_record("b", "Termination clause requires notice.", 2, "TERMINATION", document_id="doc-2"),
+        ]
+        retriever = BM25Retriever(records)
+
+        result = retriever.retrieve_bm25("termination notice", top_k=5, document_ids=["doc-1"])
+
+        doc_ids = {chunk.document_id for chunk in result.chunks}
+        assert doc_ids == {"doc-1"}
+
+    def test_document_ids_none_is_unfiltered(self):
+        records = [
+            make_record("a", "Termination clause requires notice.", 1, "TERMINATION", document_id="doc-1"),
+            make_record("b", "Termination clause requires notice.", 2, "TERMINATION", document_id="doc-2"),
+        ]
+        retriever = BM25Retriever(records)
+
+        result = retriever.retrieve_bm25("termination notice", top_k=5, document_ids=None)
+
+        doc_ids = {chunk.document_id for chunk in result.chunks}
+        assert doc_ids == {"doc-1", "doc-2"}
+
+    def test_document_ids_filter_can_empty_results(self):
+        records = [make_record("a", "Termination clause requires notice.", 1, "TERMINATION", document_id="doc-1")]
+        retriever = BM25Retriever(records)
+
+        with pytest.raises(NoRelevantResultsError):
+            retriever.retrieve_bm25("termination notice", top_k=5, document_ids=["doc-does-not-exist"])

@@ -36,12 +36,19 @@ class HybridQueryRetriever:
     similarity_threshold: float = 0.30
 
     def retrieve(self, query: str, top_k: int = 5, filters: dict | None = None) -> list[RetrievedChunk]:
+        document_ids: list[str] | None = None
         if filters:
-            raise NotImplementedError("Metadata filters are not supported by HybridQueryRetriever.")
+            unsupported = set(filters) - {"document_ids"}
+            if unsupported:
+                raise NotImplementedError(
+                    f"Metadata filters {sorted(unsupported)} are not supported by HybridQueryRetriever "
+                    "(only 'document_ids' is implemented)."
+                )
+            document_ids = filters.get("document_ids")
         if not query or not query.strip():
             raise EmptyQueryError("Query must not be blank.")
 
-        result = self.hybrid_retriever.retrieve_hybrid(query, top_k=top_k)
+        result = self.hybrid_retriever.retrieve_hybrid(query, top_k=top_k, document_ids=document_ids)
 
         accepted = [c for c in result.chunks if c.dense_score is not None and c.dense_score >= self.similarity_threshold]
         if not accepted:

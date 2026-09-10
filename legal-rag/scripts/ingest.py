@@ -9,11 +9,16 @@ the immediate parent directory name; a directory nested one level deeper
 instead of the grouping directory.
 
 The Chroma collection is dropped first so stale chunks from a previous
-chunker version never coexist with newly produced ones.
+chunker version never coexist with newly produced ones. Each chunking
+method has its own Chroma directory (data/chroma for "legal", the
+default; data/chroma_<method> otherwise) so re-ingesting under one
+strategy never clobbers another's index.
 
 Usage:
     python scripts/ingest.py --source /path/to/raw/pdfs
     python scripts/ingest.py    # defaults to data/documents_source/ if present
+    python scripts/ingest.py --chunking-method recursive
+    python scripts/ingest.py --chunking-method llm_semantic
 """
 
 from __future__ import annotations
@@ -30,6 +35,8 @@ sys.path.insert(0, str(APP_DIR))
 from src.config.settings import Settings  # noqa: E402
 from src.embeddings.providers import LocalHuggingFaceEmbeddingProvider  # noqa: E402
 from src.embeddings.service import EmbeddingService  # noqa: E402
+from src.generation.providers import DeepSeekLLMClient  # noqa: E402
+from src.ingestion.chunker_factory import CHUNKING_METHODS, build_chunker  # noqa: E402
 from src.ingestion.service import DocumentUploadService  # noqa: E402
 from src.vectorstore.chroma_store import ChromaVectorStore  # noqa: E402
 from src.vectorstore.service import VectorIndexService  # noqa: E402
@@ -37,7 +44,14 @@ from src.vectorstore.service import VectorIndexService  # noqa: E402
 DATA_DIR = APP_DIR / "data"
 DEFAULT_SOURCE_DIR = DATA_DIR / "documents_source"
 DOCUMENTS_DIR = DATA_DIR / "documents"
-CHROMA_DIR = DATA_DIR / "chroma"
+
+
+def _chroma_dir_for(method: str) -> Path:
+    """The "legal" (default) method keeps today's data/chroma path, since
+    that's what build_services()/the running API already point at by
+    default; the two new methods get their own directory so re-ingesting
+    under one strategy never clobbers another's index."""
+    return DATA_DIR / "chroma" if method == "legal" else DATA_DIR / f"chroma_{method}"
 
 
 def _category_for(pdf_path: Path, source_dir: Path) -> str:
@@ -59,8 +73,16 @@ def main() -> None:
         default=DEFAULT_SOURCE_DIR,
         help="Directory containing <category>/[<subcategory>/]*.pdf (default: data/documents_source)",
     )
+    parser.add_argument(
+        "--chunking-method",
+        choices=CHUNKING_METHODS,
+        default="legal",
+        help="Chunking strategy to ingest with (default: legal). Each method is indexed "
+        "into its own Chroma directory so strategies never collide.",
+    )
     args = parser.parse_args()
     source_dir: Path = args.source
+    chroma_dir = _chroma_dir_for(args.chunking_method)
 
     if not source_dir.exists():
         print(f"Source directory not found: {source_dir}")
@@ -74,17 +96,32 @@ def main() -> None:
 
     categories = {_category_for(p, source_dir) for p in pdf_paths}
     print(f"Found {len(pdf_paths)} PDFs across {len(categories)} categories: {sorted(categories)}")
+    print(f"Chunking method: {args.chunking_method}")
 
-    if CHROMA_DIR.exists():
-        print(f"Dropping existing vector store at {CHROMA_DIR}")
-        shutil.rmtree(CHROMA_DIR)
+    if chroma_dir.exists():
+        print(f"Dropping existing vector store at {chroma_dir}")
+        shutil.rmtree(chroma_dir)
 
     settings = Settings.from_env(APP_DIR / ".env")
     embedding_provider = LocalHuggingFaceEmbeddingProvider(model_name=settings.embedding_model)
     embedding_service = EmbeddingService(provider=embedding_provider)
-    vector_store = ChromaVectorStore(storage_dir=CHROMA_DIR, dimension=embedding_service.embedding_dimension())
+    vector_store = ChromaVectorStore(storage_dir=chroma_dir, dimension=embedding_service.embedding_dimension())
     index_service = VectorIndexService(store=vector_store)
-    upload_service = DocumentUploadService(storage_dir=DOCUMENTS_DIR)
+
+    llm_client = None
+    if args.chunking_method == "llm_semantic":
+        llm_client = DeepSeekLLMClient(
+            api_key=settings.deepseek_api_key,
+            model_name=settings.deepseek_model,
+            base_url=settings.deepseek_base_url,
+        )
+    chunker = build_chunker(
+        settings,
+        llm_client=llm_client,
+        llm_cache_dir=DATA_DIR / "llm_chunk_cache",
+        method=args.chunking_method,
+    )
+    upload_service = DocumentUploadService(storage_dir=DOCUMENTS_DIR, chunker=chunker)
 
     total_chunks = 0
     start = time.monotonic()
@@ -107,7 +144,7 @@ def main() -> None:
 
     elapsed = time.monotonic() - start
     print(f"\nIndexed {total_chunks} chunks from {len(pdf_paths)} documents in {elapsed:.1f}s")
-    print(f"Vector store: {CHROMA_DIR}")
+    print(f"Vector store: {chroma_dir}")
 
 
 if __name__ == "__main__":

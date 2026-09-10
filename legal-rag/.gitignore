@@ -14,11 +14,14 @@ build/
 
 .env
 
-data/chroma/
+data/chroma*/
 data/documents/
 data/documents.json
+data/cases.json
 data/evaluation_results*.json
+data/llm_chunk_cache/
 !data/documents/.gitkeep
 doc/
+data/
 
 .streamlit/secrets.toml

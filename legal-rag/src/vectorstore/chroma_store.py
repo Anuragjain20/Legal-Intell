@@ -86,14 +86,18 @@ class ChromaVectorStore:
             for i, metadata in enumerate(result.get("metadatas", []))
         ]
 
-    def search(self, vector: list[float], top_k: int = 5) -> list[SearchResult]:
+    def search(
+        self, vector: list[float], top_k: int = 5, document_ids: list[str] | None = None
+    ) -> list[SearchResult]:
         self._validate_vector(vector)
         if top_k <= 0 or self._collection.count() == 0:
             return []
+        where = {"document_id": {"$in": document_ids}} if document_ids else None
         result = self._collection.query(
             query_embeddings=[vector],
             n_results=min(top_k, self._collection.count()),
             include=["documents", "metadatas", "distances", "embeddings"],
+            where=where,
         )
         return [
             SearchResult(record=self._record(result, index, nested=True), score=1 - distance)

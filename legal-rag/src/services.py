@@ -19,6 +19,8 @@ from src.generation.context_builder import ContextBuilder
 from src.generation.llm_service import GenerationService, LLMService
 from src.generation.prompt import PromptBuilder
 from src.generation.providers import DeepSeekLLMClient
+from src.ingestion.chunker import Chunker
+from src.ingestion.chunker_factory import CHUNKING_METHODS, build_chunker
 from src.ingestion.service import DocumentUploadService
 from src.retrieval.bm25_baseline import BM25Retriever
 from src.retrieval.dense_baseline import DenseRetriever
@@ -30,9 +32,25 @@ from src.vectorstore.service import VectorIndexService
 MAX_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024
 
 
+def chroma_dir_for_method(data_dir: Path, method: str) -> Path:
+    """Each chunking method gets its own Chroma directory - chunking is baked
+    into the index, so strategies must never share a collection."""
+    return data_dir / "chroma" if method == "legal" else data_dir / f"chroma_{method}"
+
+
 @dataclass
 class Services:
-    """The fully wired RAG pipeline."""
+    """The fully wired RAG pipeline.
+
+    The active/default pipeline (settings.chunking_method, normally "legal")
+    is what upload_service/vector_store/retriever point at - this is the
+    path POST /query and the CLI's default ingest use, unchanged from
+    before per-method chunking existed. chunkers/upload_services_by_method
+    hold all CHUNKING_METHODS built once at startup, each with its own
+    Chroma directory (see chroma_dir_for_method), so POST /ingest can
+    route a request to any method without a second concurrent writer on
+    the same Chroma path.
+    """
 
     settings: Settings
     upload_service: DocumentUploadService
@@ -41,6 +59,9 @@ class Services:
     vector_store: ChromaVectorStore
     retriever: HybridQueryRetriever
     generation_service: GenerationService
+    chunkers: dict[str, Chunker]
+    upload_services_by_method: dict[str, DocumentUploadService]
+    vector_stores_by_method: dict[str, ChromaVectorStore]
 
     def rebuild_bm25_index(self) -> None:
         """Rebuild the BM25 half of hybrid retrieval from the current Chroma contents.
@@ -69,7 +90,7 @@ def build_services(app_dir: Path) -> Services:
     """
     data_dir = app_dir / "data"
     documents_dir = data_dir / "documents"
-    chroma_dir = data_dir / "chroma"
+    chroma_dir = chroma_dir_for_method(data_dir, "legal")
 
     settings = Settings.from_env(app_dir / ".env")
     embedding_provider = LocalHuggingFaceEmbeddingProvider(model_name=settings.embedding_model)
@@ -80,9 +101,44 @@ def build_services(app_dir: Path) -> Services:
     bm25_retriever = BM25Retriever(chunks=vector_store.get_all())
     hybrid_retriever = HybridRetriever(dense_retriever=dense_retriever, bm25_retriever=bm25_retriever)
 
+    llm_client = DeepSeekLLMClient(
+        api_key=settings.deepseek_api_key,
+        model_name=settings.deepseek_model,
+        base_url=settings.deepseek_base_url,
+    )
+
+    # All three chunking methods are built once at startup, each pointed at its
+    # own Chroma directory, so POST /ingest can route to any of them (Phase 8a)
+    # without ever opening the same Chroma path from two writers.
+    chunkers: dict[str, Chunker] = {}
+    upload_services_by_method: dict[str, DocumentUploadService] = {}
+    vector_stores_by_method: dict[str, ChromaVectorStore] = {}
+    for method in CHUNKING_METHODS:
+        chunker = build_chunker(
+            settings,
+            llm_client=llm_client,
+            llm_cache_dir=data_dir / "llm_chunk_cache",
+            method=method,
+        )
+        chunkers[method] = chunker
+        if method == "legal":
+            upload_services_by_method[method] = DocumentUploadService(
+                storage_dir=documents_dir, max_file_size_bytes=MAX_UPLOAD_SIZE_BYTES, chunker=chunker
+            )
+            vector_stores_by_method[method] = vector_store
+        else:
+            method_chroma_dir = chroma_dir_for_method(data_dir, method)
+            method_store = ChromaVectorStore(
+                storage_dir=method_chroma_dir, dimension=embedding_service.embedding_dimension()
+            )
+            vector_stores_by_method[method] = method_store
+            upload_services_by_method[method] = DocumentUploadService(
+                storage_dir=documents_dir, max_file_size_bytes=MAX_UPLOAD_SIZE_BYTES, chunker=chunker
+            )
+
     return Services(
         settings=settings,
-        upload_service=DocumentUploadService(storage_dir=documents_dir, max_file_size_bytes=MAX_UPLOAD_SIZE_BYTES),
+        upload_service=upload_services_by_method["legal"],
         embedding_service=embedding_service,
         index_service=VectorIndexService(store=vector_store),
         vector_store=vector_store,
@@ -91,15 +147,12 @@ def build_services(app_dir: Path) -> Services:
             similarity_threshold=settings.similarity_threshold,
         ),
         generation_service=GenerationService(
-            llm_service=LLMService(
-                client=DeepSeekLLMClient(
-                    api_key=settings.deepseek_api_key,
-                    model_name=settings.deepseek_model,
-                    base_url=settings.deepseek_base_url,
-                )
-            ),
+            llm_service=LLMService(client=llm_client),
             context_builder=ContextBuilder(),
             prompt_builder=PromptBuilder(),
             citation_mapper=CitationMapper(),
         ),
+        chunkers=chunkers,
+        upload_services_by_method=upload_services_by_method,
+        vector_stores_by_method=vector_stores_by_method,
     )
